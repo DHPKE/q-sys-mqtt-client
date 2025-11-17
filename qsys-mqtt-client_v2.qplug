@@ -1,0 +1,1287 @@
+-- MQTT Client Plugin for QSC Q-SYS
+-- Simple MQTT Client with Anonymous Mode Support
+
+PluginInfo = {
+  Name = "Communication~MQTT Client",
+  Version = "1.0.2",
+  Id = "qsysc.mqtt.client.1.0.2",
+  Description = "MQTT Client with anonymous authentication support",
+  Author = "Q-SYS Community",
+  ShowDebug = true
+}
+
+function GetColor(props)
+  return {102, 102, 102}
+end
+
+function GetPrettyName(props)
+  return "MQTT Client v" .. PluginInfo.Version
+end
+
+-- Properties
+function GetProperties()
+  local props = {
+    {
+      Name = "Debug Print",
+      Type = "enum",
+      Choices = {"None", "Tx/Rx", "Tx", "Rx", "Function Calls", "All"},
+      Value = "All"
+    }
+  }
+  return props
+end
+
+function RectifyProperties(props)
+  return props
+end
+
+-- Define Controls
+function GetControls(props)
+  local ctls = {
+    -- Connection Controls
+    {
+      Name = "host",
+      ControlType = "Text",
+      PinStyle = "Both",
+      UserPin = true
+    },
+    {
+      Name = "port",
+      ControlType = "Text",
+      PinStyle = "Both",
+      UserPin = true
+    },
+    {
+      Name = "client_id",
+      ControlType = "Text",
+      PinStyle = "Both",
+      UserPin = true
+    },
+    {
+      Name = "username",
+      ControlType = "Text",
+      PinStyle = "Both",
+      UserPin = true
+    },
+    {
+      Name = "password",
+      ControlType = "Text",
+      PinStyle = "Both",
+      UserPin = true
+    },
+    {
+      Name = "anonymous_mode",
+      ControlType = "Button",
+      ButtonType = "Toggle",
+      PinStyle = "Both",
+      UserPin = true
+    },
+    {
+      Name = "connect",
+      ControlType = "Button",
+      ButtonType = "Toggle",
+      PinStyle = "Both",
+      UserPin = true
+    },
+    -- Publish Controls
+    {
+      Name = "publish_topic",
+      ControlType = "Text",
+      PinStyle = "Both",
+      UserPin = true
+    },
+    {
+      Name = "publish_payload",
+      ControlType = "Text",
+      PinStyle = "Both",
+      UserPin = true
+    },
+    {
+      Name = "publish_qos",
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      PinStyle = "Both",
+      UserPin = true
+    },
+    {
+      Name = "publish_qos_selector",
+      ControlType = "Text",
+      PinStyle = "Both",
+      UserPin = false,
+      Count = 3
+    },
+    {
+      Name = "publish_retain",
+      ControlType = "Button",
+      ButtonType = "Toggle",
+      PinStyle = "Both",
+      UserPin = true
+    },
+    {
+      Name = "publish",
+      ControlType = "Button",
+      ButtonType = "Trigger",
+      PinStyle = "Input",
+      UserPin = true
+    },
+    -- Subscribe Controls
+    {
+      Name = "subscribe_topic",
+      ControlType = "Text",
+      PinStyle = "Both",
+      UserPin = true
+    },
+    {
+      Name = "subscribe_qos",
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      PinStyle = "Both",
+      UserPin = true
+    },
+    {
+      Name = "subscribe_qos_selector",
+      ControlType = "Text",
+      PinStyle = "Both",
+      UserPin = false,
+      Count = 3
+    },
+    {
+      Name = "subscribe",
+      ControlType = "Button",
+      ButtonType = "Trigger",
+      PinStyle = "Input",
+      UserPin = true
+    },
+    {
+      Name = "unsubscribe",
+      ControlType = "Button",
+      ButtonType = "Trigger",
+      PinStyle = "Input",
+      UserPin = true
+    },
+    -- Received Message Controls
+    {
+      Name = "received_topic",
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      PinStyle = "Output",
+      UserPin = true
+    },
+    {
+      Name = "received_payload",
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      PinStyle = "Output",
+      UserPin = true
+    },
+    {
+      Name = "received_qos",
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      PinStyle = "Output",
+      UserPin = true
+    },
+    {
+      Name = "received_retain",
+      ControlType = "Indicator",
+      IndicatorType = "Led",
+      PinStyle = "Output",
+      UserPin = true
+    },
+    -- Status Controls
+    {
+      Name = "status",
+      ControlType = "Indicator",
+      IndicatorType = "Status",
+      PinStyle = "Output",
+      UserPin = true
+    },
+    {
+      Name = "connection_state",
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      PinStyle = "Output",
+      UserPin = true
+    }
+  }
+  return ctls
+end
+
+-- Define Pages
+function GetPages(props)
+  local pages = {
+    {name = "Connection"},
+    {name = "Publish"},
+    {name = "Subscribe"}
+  }
+  return pages
+end
+
+function GetComponents(props)
+  return {}
+end
+
+-- Define Layout
+function GetControlLayout(props)
+  local layout = {}
+  local graphics = {}
+  
+  local CurrentPage = props["page_index"].Value
+  
+  -- PAGE 1: Connection
+  if CurrentPage == 1 then
+    
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "MQTT Broker Connection",
+      Fill = {102, 102, 102},
+      CornerRadius = 8,
+      StrokeColor = {0, 0, 0},
+      StrokeWidth = 1,
+      Position = {5, 5},
+      Size = {490, 330}
+    })
+    
+    -- Host/IP
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Host/IP:",
+      Position = {15, 35},
+      Size = {100, 20},
+      FontSize = 12,
+      HTextAlign = "Right"
+    })
+    
+    layout["host"] = {
+      PrettyName = "Broker Host/IP",
+      Style = "Text",
+      Position = {125, 30},
+      Size = {260, 30},
+      FontSize = 12
+    }
+    
+    -- Port
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Port:",
+      Position = {15, 75},
+      Size = {100, 20},
+      FontSize = 12,
+      HTextAlign = "Right"
+    })
+    
+    layout["port"] = {
+      PrettyName = "Broker Port",
+      Style = "Text",
+      Position = {125, 70},
+      Size = {100, 30},
+      FontSize = 12
+    }
+    
+    -- Client ID
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Client ID:",
+      Position = {15, 115},
+      Size = {100, 20},
+      FontSize = 12,
+      HTextAlign = "Right"
+    })
+    
+    layout["client_id"] = {
+      PrettyName = "MQTT Client ID",
+      Style = "Text",
+      Position = {125, 110},
+      Size = {260, 30},
+      FontSize = 12
+    }
+    
+    -- Anonymous Mode Toggle
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Anonymous Mode:",
+      Position = {15, 155},
+      Size = {100, 20},
+      FontSize = 12,
+      HTextAlign = "Right"
+    })
+    
+    layout["anonymous_mode"] = {
+      PrettyName = "Anonymous Mode",
+      Style = "Button",
+      ButtonStyle = "Toggle",
+      Position = {125, 150},
+      Size = {100, 30},
+      Legend = "Anonymous",
+      Color = {0, 102, 204}
+    }
+    
+    -- Username
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Username:",
+      Position = {15, 195},
+      Size = {100, 20},
+      FontSize = 12,
+      HTextAlign = "Right"
+    })
+    
+    layout["username"] = {
+      PrettyName = "Username",
+      Style = "Text",
+      Position = {125, 190},
+      Size = {260, 30},
+      FontSize = 12
+    }
+    
+    -- Password
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Password:",
+      Position = {15, 235},
+      Size = {100, 20},
+      FontSize = 12,
+      HTextAlign = "Right"
+    })
+    
+    layout["password"] = {
+      PrettyName = "Password",
+      Style = "Text",
+      Position = {125, 230},
+      Size = {260, 30},
+      FontSize = 12
+    }
+    
+    -- Connect Button
+    layout["connect"] = {
+      PrettyName = "Connect",
+      Style = "Button",
+      ButtonStyle = "Toggle",
+      Position = {125, 275},
+      Size = {100, 40},
+      Legend = "Connect",
+      Color = {0, 153, 51}
+    }
+    
+    -- Status Indicator
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Status:",
+      Position = {240, 280},
+      Size = {60, 20},
+      FontSize = 12,
+      HTextAlign = "Right"
+    })
+    
+    layout["status"] = {
+      PrettyName = "Connection Status",
+      Position = {310, 275},
+      Size = {75, 40}
+    }
+    
+    -- Connection State Text
+    layout["connection_state"] = {
+      PrettyName = "Connection State",
+      Position = {15, 345},
+      Size = {480, 20},
+      FontSize = 10
+    }
+    
+  -- PAGE 2: Publish
+  elseif CurrentPage == 2 then
+    
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "MQTT Publish",
+      Fill = {102, 102, 102},
+      CornerRadius = 8,
+      StrokeColor = {0, 0, 0},
+      StrokeWidth = 1,
+      Position = {5, 5},
+      Size = {490, 330}
+    })
+    
+    -- Topic
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Topic:",
+      Position = {15, 35},
+      Size = {100, 20},
+      FontSize = 12,
+      HTextAlign = "Right"
+    })
+    
+    layout["publish_topic"] = {
+      PrettyName = "Publish Topic",
+      Style = "Text",
+      Position = {125, 30},
+      Size = {350, 30},
+      FontSize = 12
+    }
+    
+    -- Payload
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Payload:",
+      Position = {15, 75},
+      Size = {100, 20},
+      FontSize = 12,
+      HTextAlign = "Right"
+    })
+    
+    layout["publish_payload"] = {
+      PrettyName = "Publish Payload",
+      Style = "Text",
+      Position = {125, 70},
+      Size = {350, 100},
+      FontSize = 12
+    }
+    
+    -- QoS Dropdown
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "QoS:",
+      Position = {15, 185},
+      Size = {100, 20},
+      FontSize = 12,
+      HTextAlign = "Right"
+    })
+    
+    layout["publish_qos"] = {
+      PrettyName = "Publish QoS Display",
+      Position = {125, 180},
+      Size = {60, 30},
+      FontSize = 14,
+      HTextAlign = "Center"
+    }
+    
+    -- QoS Selection Buttons
+    layout["publish_qos_selector[1]"] = {
+      PrettyName = "QoS 0",
+      Style = "Button",
+      Legend = "0",
+      Position = {195, 180},
+      Size = {50, 30},
+      Color = {0, 102, 204}
+    }
+    
+    layout["publish_qos_selector[2]"] = {
+      PrettyName = "QoS 1",
+      Style = "Button",
+      Legend = "1",
+      Position = {255, 180},
+      Size = {50, 30},
+      Color = {0, 102, 204}
+    }
+    
+    layout["publish_qos_selector[3]"] = {
+      PrettyName = "QoS 2",
+      Style = "Button",
+      Legend = "2",
+      Position = {315, 180},
+      Size = {50, 30},
+      Color = {0, 102, 204}
+    }
+    
+    -- Retain
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Retain:",
+      Position = {15, 225},
+      Size = {100, 20},
+      FontSize = 12,
+      HTextAlign = "Right"
+    })
+    
+    layout["publish_retain"] = {
+      PrettyName = "Retain Message",
+      Style = "Button",
+      ButtonStyle = "Toggle",
+      Position = {125, 220},
+      Size = {80, 30},
+      Legend = "Retain",
+      Color = {102, 102, 102}
+    }
+    
+    -- Publish Button
+    layout["publish"] = {
+      PrettyName = "Publish",
+      Style = "Button",
+      ButtonStyle = "Trigger",
+      Position = {250, 220},
+      Size = {120, 40},
+      Legend = "Publish",
+      Color = {0, 102, 204}
+    }
+    
+    -- Status on Publish page
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Connection:",
+      Position = {15, 310},
+      Size = {80, 20},
+      FontSize = 10,
+      HTextAlign = "Right"
+    })
+    
+    layout["status"] = {
+      PrettyName = "Connection Status",
+      Position = {100, 305},
+      Size = {60, 30}
+    }
+    
+    layout["connection_state"] = {
+      PrettyName = "Connection State",
+      Position = {165, 310},
+      Size = {310, 20},
+      FontSize = 10
+    }
+    
+  -- PAGE 3: Subscribe
+  elseif CurrentPage == 3 then
+    
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "MQTT Subscribe",
+      Fill = {102, 102, 102},
+      CornerRadius = 8,
+      StrokeColor = {0, 0, 0},
+      StrokeWidth = 1,
+      Position = {5, 5},
+      Size = {490, 160}
+    })
+    
+    -- Subscribe Topic
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Topic:",
+      Position = {15, 35},
+      Size = {100, 20},
+      FontSize = 12,
+      HTextAlign = "Right"
+    })
+    
+    layout["subscribe_topic"] = {
+      PrettyName = "Subscribe Topic",
+      Style = "Text",
+      Position = {125, 30},
+      Size = {350, 30},
+      FontSize = 12
+    }
+    
+    -- Subscribe QoS Dropdown
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "QoS:",
+      Position = {15, 75},
+      Size = {100, 20},
+      FontSize = 12,
+      HTextAlign = "Right"
+    })
+    
+    layout["subscribe_qos"] = {
+      PrettyName = "Subscribe QoS Display",
+      Position = {125, 70},
+      Size = {60, 30},
+      FontSize = 14,
+      HTextAlign = "Center"
+    }
+    
+    -- QoS Selection Buttons
+    layout["subscribe_qos_selector[1]"] = {
+      PrettyName = "QoS 0",
+      Style = "Button",
+      Legend = "0",
+      Position = {195, 70},
+      Size = {50, 30},
+      Color = {0, 102, 204}
+    }
+    
+    layout["subscribe_qos_selector[2]"] = {
+      PrettyName = "QoS 1",
+      Style = "Button",
+      Legend = "1",
+      Position = {255, 70},
+      Size = {50, 30},
+      Color = {0, 102, 204}
+    }
+    
+    layout["subscribe_qos_selector[3]"] = {
+      PrettyName = "QoS 2",
+      Style = "Button",
+      Legend = "2",
+      Position = {315, 70},
+      Size = {50, 30},
+      Color = {0, 102, 204}
+    }
+    
+    -- Subscribe/Unsubscribe Buttons
+    layout["subscribe"] = {
+      PrettyName = "Subscribe",
+      Style = "Button",
+      ButtonStyle = "Trigger",
+      Position = {125, 115},
+      Size = {120, 40},
+      Legend = "Subscribe",
+      Color = {0, 153, 51}
+    }
+    
+    layout["unsubscribe"] = {
+      PrettyName = "Unsubscribe",
+      Style = "Button",
+      ButtonStyle = "Trigger",
+      Position = {260, 115},
+      Size = {120, 40},
+      Legend = "Unsubscribe",
+      Color = {204, 51, 0}
+    }
+    
+    -- Received Messages Section
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "Received Messages",
+      Fill = {85, 85, 85},
+      CornerRadius = 4,
+      StrokeColor = {0, 0, 0},
+      StrokeWidth = 1,
+      Position = {5, 175},
+      Size = {490, 190}
+    })
+    
+    -- Received Topic
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Topic:",
+      Position = {15, 200},
+      Size = {80, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["received_topic"] = {
+      PrettyName = "Received Topic",
+      Position = {105, 195},
+      Size = {305, 25},
+      FontSize = 11
+    }
+    
+    -- Received QoS
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "QoS:",
+      Position = {415, 200},
+      Size = {30, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["received_qos"] = {
+      PrettyName = "Received QoS",
+      Position = {450, 195},
+      Size = {30, 25},
+      FontSize = 11
+    }
+    
+    -- Retain indicator
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "R",
+      Position = {418, 225},
+      Size = {20, 15},
+      FontSize = 9,
+      HTextAlign = "Center"
+    })
+    
+    layout["received_retain"] = {
+      PrettyName = "Received Retain Flag",
+      Position = {450, 225},
+      Size = {30, 15}
+    }
+    
+    -- Received Payload
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Payload:",
+      Position = {15, 250},
+      Size = {80, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["received_payload"] = {
+      PrettyName = "Received Payload",
+      Position = {105, 245},
+      Size = {375, 105},
+      FontSize = 11
+    }
+    
+  end
+  
+  return layout, graphics
+end
+
+-- Runtime Code
+if Controls then
+  
+  -- MQTT State Variables
+  local mqtt_socket = nil
+  local packet_id = 1
+  local keep_alive_timer = nil
+  local subscribed_topics = {}
+  local is_connected = false
+  local pending_qos2 = {} -- Track QoS 2 messages waiting for completion
+  local selected_publish_qos = 0
+  local selected_subscribe_qos = 0
+  
+  -- Debug Print Function
+  local function DebugPrint(message)
+    local debug_mode = Properties["Debug Print"].Value
+    if debug_mode == "All" or debug_mode == "Function Calls" then
+      print(string.format("[MQTT] %s", message))
+    end
+  end
+  
+  -- Update Status
+  local function UpdateStatus(state, message)
+    Controls.connection_state.String = message
+    print(string.format("[MQTT Status] %s: %s", state, message))
+    
+    if state == "Connected" then
+      Controls.status.Value = 0 -- OK
+      Controls.connect.Boolean = true
+      is_connected = true
+    elseif state == "Disconnected" then
+      Controls.status.Value = 2 -- Compromised
+      Controls.connect.Boolean = false
+      is_connected = false
+    elseif state == "Error" then
+      Controls.status.Value = 5 -- Fault
+      Controls.connect.Boolean = false
+      is_connected = false
+    else
+      Controls.status.Value = 1 -- Initializing
+    end
+  end
+  
+  -- MQTT Helper Functions
+  local function EncodeLength(length)
+    local encoded = ""
+    repeat
+      local byte = length % 128
+      length = math.floor(length / 128)
+      if length > 0 then
+        byte = byte + 128
+      end
+      encoded = encoded .. string.char(byte)
+    until length == 0
+    return encoded
+  end
+  
+  local function EncodeString(str)
+    local len = string.len(str)
+    return string.char(math.floor(len / 256), len % 256) .. str
+  end
+  
+  -- Convert byte string to hex for debugging
+  local function BytesToHex(str)
+    local hex = ""
+    for i = 1, #str do
+      hex = hex .. string.format("%02X ", string.byte(str, i))
+    end
+    return hex
+  end
+  
+  -- MQTT Connect Packet
+  local function SendConnectPacket()
+    DebugPrint("Sending CONNECT packet")
+    
+    local client_id = Controls.client_id.String
+    if client_id == "" then
+      client_id = "qsys_" .. tostring(math.random(10000, 99999))
+      Controls.client_id.String = client_id
+    end
+    
+    local variable_header = EncodeString("MQTT") .. string.char(4) -- Protocol name and level
+    
+    local connect_flags = 0x02 -- Clean session
+    local payload = EncodeString(client_id)
+    
+    -- Add username/password if not in anonymous mode
+    if not Controls.anonymous_mode.Boolean then
+      if Controls.username.String ~= "" then
+        connect_flags = connect_flags + 0x80 -- Username flag
+        payload = payload .. EncodeString(Controls.username.String)
+      end
+      if Controls.password.String ~= "" then
+        connect_flags = connect_flags + 0x40 -- Password flag
+        payload = payload .. EncodeString(Controls.password.String)
+      end
+    end
+    
+    variable_header = variable_header .. string.char(connect_flags)
+    variable_header = variable_header .. string.char(0, 60) -- Keep alive 60 seconds
+    
+    local remaining_length = string.len(variable_header) + string.len(payload)
+    local packet = string.char(0x10) .. EncodeLength(remaining_length) .. variable_header .. payload
+    
+    DebugPrint("CONNECT packet: " .. BytesToHex(packet))
+    mqtt_socket:Write(packet)
+  end
+  
+  -- Send PUBREL (QoS 2 response to PUBREC)
+  local function SendPubrel(msg_packet_id)
+    DebugPrint(string.format("Sending PUBREL for packet ID: %d", msg_packet_id))
+    local packet = string.char(0x62, 0x02) .. string.char(math.floor(msg_packet_id / 256), msg_packet_id % 256)
+    DebugPrint("PUBREL packet: " .. BytesToHex(packet))
+    mqtt_socket:Write(packet)
+  end
+  
+  -- Send PUBREC (QoS 2 acknowledgment of PUBLISH)
+  local function SendPubrec(msg_packet_id)
+    DebugPrint(string.format("Sending PUBREC for packet ID: %d", msg_packet_id))
+    local packet = string.char(0x50, 0x02) .. string.char(math.floor(msg_packet_id / 256), msg_packet_id % 256)
+    DebugPrint("PUBREC packet: " .. BytesToHex(packet))
+    mqtt_socket:Write(packet)
+  end
+  
+  -- Send PUBCOMP (QoS 2 final acknowledgment)
+  local function SendPubcomp(msg_packet_id)
+    DebugPrint(string.format("Sending PUBCOMP for packet ID: %d", msg_packet_id))
+    local packet = string.char(0x70, 0x02) .. string.char(math.floor(msg_packet_id / 256), msg_packet_id % 256)
+    DebugPrint("PUBCOMP packet: " .. BytesToHex(packet))
+    mqtt_socket:Write(packet)
+  end
+  
+  -- MQTT Publish
+  local function PublishMessage()
+    print("[MQTT] PublishMessage called")
+    
+    if not mqtt_socket then
+      print("[MQTT] Error: mqtt_socket is nil")
+      UpdateStatus("Error", "Not connected - socket is nil")
+      return
+    end
+    
+    if not mqtt_socket.IsConnected then
+      print("[MQTT] Error: socket not connected")
+      UpdateStatus("Error", "Not connected - cannot publish")
+      return
+    end
+    
+    if not is_connected then
+      print("[MQTT] Error: MQTT not connected")
+      UpdateStatus("Error", "MQTT not connected - cannot publish")
+      return
+    end
+    
+    local topic = Controls.publish_topic.String
+    local payload = Controls.publish_payload.String
+    local qos = selected_publish_qos
+    local retain = Controls.publish_retain.Boolean
+    
+    print(string.format("[MQTT] Topic: '%s', Payload: '%s', QoS: %d, Retain: %s", 
+      topic, payload, qos, tostring(retain)))
+    
+    if topic == "" then
+      print("[MQTT] Error: topic is empty")
+      UpdateStatus("Error", "Cannot publish - topic is empty")
+      return
+    end
+    
+    DebugPrint(string.format("Publishing to topic: %s with payload: %s", topic, payload))
+    
+    -- Build PUBLISH packet
+    local fixed_header = 0x30  -- PUBLISH packet type
+    
+    -- Add QoS (bits 1-2)
+    if qos == 1 then
+      fixed_header = 0x32  -- QoS 1
+    elseif qos == 2 then
+      fixed_header = 0x34  -- QoS 2
+    end
+    
+    -- Add retain flag (bit 0)
+    if retain then 
+      fixed_header = fixed_header + 0x01
+      print("[MQTT] Retain flag SET (header: 0x" .. string.format("%02X", fixed_header) .. ")")
+    else
+      print("[MQTT] Retain flag NOT SET (header: 0x" .. string.format("%02X", fixed_header) .. ")")
+    end
+    
+    print(string.format("[MQTT] Fixed header: 0x%02X", fixed_header))
+    
+    -- Variable header: topic name
+    local variable_header = EncodeString(topic)
+    
+    -- Add packet identifier for QoS > 0
+    local current_packet_id = 0
+    if qos > 0 then
+      current_packet_id = packet_id
+      variable_header = variable_header .. string.char(math.floor(packet_id / 256), packet_id % 256)
+      print(string.format("[MQTT] Packet ID: %d", packet_id))
+      
+      if qos == 2 then
+        pending_qos2[packet_id] = true
+      end
+      
+      packet_id = packet_id + 1
+      if packet_id > 65535 then 
+        packet_id = 1 
+      end
+    end
+    
+    -- Calculate remaining length
+    local remaining_length = string.len(variable_header) + string.len(payload)
+    print(string.format("[MQTT] Remaining length: %d", remaining_length))
+    
+    -- Build complete packet
+    local packet = string.char(fixed_header) .. EncodeLength(remaining_length) .. variable_header .. payload
+    
+    print("[MQTT] PUBLISH packet: " .. BytesToHex(packet))
+    print(string.format("[MQTT] Packet total length: %d bytes", string.len(packet)))
+    
+    -- Send the packet
+    local success, err = pcall(function()
+      mqtt_socket:Write(packet)
+    end)
+    
+    if success then
+      print("[MQTT] Publish packet sent successfully")
+      local qos_text = string.format("QoS %d", qos)
+      if qos == 2 then
+        qos_text = qos_text .. " (awaiting PUBREC)"
+      end
+      UpdateStatus("Connected", string.format("Published to '%s' (%s, Retain: %s)", topic, qos_text, tostring(retain)))
+    else
+      print("[MQTT] Error sending publish: " .. tostring(err))
+      UpdateStatus("Error", "Failed to send publish packet")
+    end
+  end
+  
+  -- MQTT Subscribe
+  local function Subscribe()
+    if not mqtt_socket or not mqtt_socket.IsConnected or not is_connected then
+      DebugPrint("Cannot subscribe - not connected")
+      UpdateStatus("Error", "Not connected - cannot subscribe")
+      return
+    end
+    
+    local topic = Controls.subscribe_topic.String
+    local qos = selected_subscribe_qos
+    
+    if topic == "" then
+      DebugPrint("Cannot subscribe - topic is empty")
+      return
+    end
+    
+    DebugPrint(string.format("Subscribing to topic: %s with QoS %d", topic, qos))
+    
+    local variable_header = string.char(math.floor(packet_id / 256), packet_id % 256)
+    packet_id = packet_id + 1
+    if packet_id > 65535 then 
+      packet_id = 1 
+    end
+    
+    local payload = EncodeString(topic) .. string.char(qos)
+    local remaining_length = string.len(variable_header) + string.len(payload)
+    local packet = string.char(0x82) .. EncodeLength(remaining_length) .. variable_header .. payload
+    
+    DebugPrint("SUBSCRIBE packet: " .. BytesToHex(packet))
+    mqtt_socket:Write(packet)
+    subscribed_topics[topic] = true
+  end
+  
+  -- MQTT Unsubscribe
+  local function Unsubscribe()
+    if not mqtt_socket or not mqtt_socket.IsConnected or not is_connected then
+      DebugPrint("Cannot unsubscribe - not connected")
+      UpdateStatus("Error", "Not connected - cannot unsubscribe")
+      return
+    end
+    
+    local topic = Controls.subscribe_topic.String
+    
+    if topic == "" then
+      DebugPrint("Cannot unsubscribe - topic is empty")
+      return
+    end
+    
+    DebugPrint(string.format("Unsubscribing from topic: %s", topic))
+    
+    local variable_header = string.char(math.floor(packet_id / 256), packet_id % 256)
+    packet_id = packet_id + 1
+    if packet_id > 65535 then 
+      packet_id = 1 
+    end
+    
+    local payload = EncodeString(topic)
+    local remaining_length = string.len(variable_header) + string.len(payload)
+    local packet = string.char(0xA2) .. EncodeLength(remaining_length) .. variable_header .. payload
+    
+    DebugPrint("UNSUBSCRIBE packet: " .. BytesToHex(packet))
+    mqtt_socket:Write(packet)
+    subscribed_topics[topic] = nil
+  end
+  
+  -- MQTT Ping
+  local function SendPingRequest()
+    if mqtt_socket and mqtt_socket.IsConnected and is_connected then
+      DebugPrint("Sending PINGREQ")
+      mqtt_socket:Write(string.char(0xC0, 0x00))
+    end
+  end
+  
+  -- Update QoS Display
+  local function UpdatePublishQoS(qos)
+    selected_publish_qos = qos
+    Controls.publish_qos.String = tostring(qos)
+    print(string.format("[MQTT] Publish QoS set to: %d", qos))
+  end
+  
+  local function UpdateSubscribeQoS(qos)
+    selected_subscribe_qos = qos
+    Controls.subscribe_qos.String = tostring(qos)
+    print(string.format("[MQTT] Subscribe QoS set to: %d", qos))
+  end
+  
+  -- Connect/Disconnect
+  local function ConnectToBroker()
+    local host = Controls.host.String
+    local port = tonumber(Controls.port.String) or 1883
+    
+    if host == "" then
+      UpdateStatus("Error", "Host/IP cannot be empty")
+      Controls.connect.Boolean = false
+      return
+    end
+    
+    UpdateStatus("Connecting", string.format("Connecting to %s:%d...", host, port))
+    
+    mqtt_socket = TcpSocket.New()
+    mqtt_socket.ReadTimeout = 0
+    mqtt_socket.WriteTimeout = 0
+    mqtt_socket.ReconnectTimeout = 5
+    
+    mqtt_socket.Connected = function(sock)
+      DebugPrint("TCP Connected")
+      SendConnectPacket()
+    end
+    
+    mqtt_socket.Reconnect = function(sock)
+      UpdateStatus("Connecting", "Reconnecting...")
+      is_connected = false
+    end
+    
+    mqtt_socket.Data = function(sock)
+      local data = sock:Read(sock.BufferLength)
+      DebugPrint("Received: " .. BytesToHex(data))
+      
+      local packet_type = math.floor(string.byte(data, 1) / 16)
+      DebugPrint(string.format("Packet type: %d", packet_type))
+      
+      if packet_type == 2 then -- CONNACK
+        local return_code = string.byte(data, 4)
+        if return_code == 0 then
+          UpdateStatus("Connected", string.format("Connected to %s:%d", host, port))
+          is_connected = true
+          
+          -- Start keep-alive timer
+          if keep_alive_timer then 
+            keep_alive_timer:Stop() 
+          end
+          keep_alive_timer = Timer.New()
+          keep_alive_timer.EventHandler = SendPingRequest
+          keep_alive_timer:Start(30)
+        else
+          UpdateStatus("Error", string.format("Connection refused (code: %d)", return_code))
+          is_connected = false
+          sock:Disconnect()
+        end
+        
+      elseif packet_type == 3 then -- PUBLISH
+        -- Parse publish packet
+        local flags = string.byte(data, 1) % 16
+        local qos = math.floor((flags % 8) / 2)
+        local retain = (flags % 2) == 1
+        
+        print(string.format("[MQTT] PUBLISH flags: 0x%02X, QoS: %d, Retain: %s", flags, qos, tostring(retain)))
+        
+        local pos = 2
+        local remaining_length = 0
+        local multiplier = 1
+        repeat
+          local byte = string.byte(data, pos)
+          remaining_length = remaining_length + (byte % 128) * multiplier
+          multiplier = multiplier * 128
+          pos = pos + 1
+        until byte < 128
+        
+        local topic_len = string.byte(data, pos) * 256 + string.byte(data, pos + 1)
+        pos = pos + 2
+        local topic = string.sub(data, pos, pos + topic_len - 1)
+        pos = pos + topic_len
+        
+        -- Get packet ID for QoS > 0
+        local msg_packet_id = 0
+        if qos > 0 then
+          msg_packet_id = string.byte(data, pos) * 256 + string.byte(data, pos + 1)
+          pos = pos + 2
+          print(string.format("[MQTT] Received message packet ID: %d", msg_packet_id))
+        end
+        
+        local payload = string.sub(data, pos)
+        
+        DebugPrint(string.format("Received message on topic: %s (QoS: %d, Retain: %s)", topic, qos, tostring(retain)))
+        Controls.received_topic.String = topic
+        Controls.received_payload.String = payload
+        Controls.received_qos.String = tostring(qos)
+        Controls.received_retain.Boolean = retain
+        
+        -- Send acknowledgments based on QoS
+        if qos == 1 then
+          -- Send PUBACK
+          local puback = string.char(0x40, 0x02) .. string.char(math.floor(msg_packet_id / 256), msg_packet_id % 256)
+          DebugPrint("Sending PUBACK: " .. BytesToHex(puback))
+          mqtt_socket:Write(puback)
+        elseif qos == 2 then
+          -- Send PUBREC
+          SendPubrec(msg_packet_id)
+        end
+        
+      elseif packet_type == 4 then -- PUBACK (QoS 1)
+        local msg_packet_id = string.byte(data, 3) * 256 + string.byte(data, 4)
+        DebugPrint(string.format("Received PUBACK for packet ID: %d", msg_packet_id))
+        
+      elseif packet_type == 5 then -- PUBREC (QoS 2 - part 1)
+        local msg_packet_id = string.byte(data, 3) * 256 + string.byte(data, 4)
+        DebugPrint(string.format("Received PUBREC for packet ID: %d", msg_packet_id))
+        
+        if pending_qos2[msg_packet_id] then
+          -- Send PUBREL
+          SendPubrel(msg_packet_id)
+        end
+        
+      elseif packet_type == 6 then -- PUBREL (QoS 2 - part 2, from broker)
+        local msg_packet_id = string.byte(data, 3) * 256 + string.byte(data, 4)
+        DebugPrint(string.format("Received PUBREL for packet ID: %d", msg_packet_id))
+        
+        -- Send PUBCOMP
+        SendPubcomp(msg_packet_id)
+        
+      elseif packet_type == 7 then -- PUBCOMP (QoS 2 - part 3)
+        local msg_packet_id = string.byte(data, 3) * 256 + string.byte(data, 4)
+        DebugPrint(string.format("Received PUBCOMP for packet ID: %d - QoS 2 flow complete", msg_packet_id))
+        
+        pending_qos2[msg_packet_id] = nil
+        UpdateStatus("Connected", "QoS 2 publish completed")
+        
+      elseif packet_type == 9 then -- SUBACK
+        DebugPrint("Received SUBACK")
+        
+      elseif packet_type == 11 then -- UNSUBACK
+        DebugPrint("Received UNSUBACK")
+        
+      elseif packet_type == 13 then -- PINGRESP
+        DebugPrint("Received PINGRESP")
+      end
+    end
+    
+    mqtt_socket.Closed = function(sock)
+      UpdateStatus("Disconnected", "Disconnected from broker")
+      is_connected = false
+      if keep_alive_timer then 
+        keep_alive_timer:Stop() 
+      end
+    end
+    
+    mqtt_socket.Error = function(sock, err)
+      UpdateStatus("Error", string.format("Socket error: %s", err))
+      is_connected = false
+      if keep_alive_timer then 
+        keep_alive_timer:Stop() 
+      end
+    end
+    
+    mqtt_socket.Timeout = function(sock, err)
+      UpdateStatus("Error", string.format("Socket timeout: %s", err))
+    end
+    
+    mqtt_socket:Connect(host, port)
+  end
+  
+  local function DisconnectFromBroker()
+    if mqtt_socket then
+      -- Send DISCONNECT packet
+      mqtt_socket:Write(string.char(0xE0, 0x00))
+      mqtt_socket:Disconnect()
+      mqtt_socket = nil
+    end
+    if keep_alive_timer then
+      keep_alive_timer:Stop()
+      keep_alive_timer = nil
+    end
+    is_connected = false
+    pending_qos2 = {}
+    UpdateStatus("Disconnected", "Disconnected")
+  end
+  
+  -- Initialize
+  Controls.port.String = "1883"
+  UpdatePublishQoS(0)
+  UpdateSubscribeQoS(0)
+  Controls.anonymous_mode.Boolean = true
+  Controls.received_retain.Boolean = false
+  UpdateStatus("Disconnected", "Not connected")
+  
+  print("[MQTT] Plugin initialized")
+  
+  -- Event Handlers
+  Controls.connect.EventHandler = function(ctl)
+    print(string.format("[MQTT] Connect button clicked: %s", tostring(ctl.Boolean)))
+    if ctl.Boolean then
+      ConnectToBroker()
+    else
+      DisconnectFromBroker()
+    end
+  end
+  
+  Controls.anonymous_mode.EventHandler = function(ctl)
+    if ctl.Boolean then
+      DebugPrint("Anonymous mode enabled")
+      Controls.username.String = ""
+      Controls.password.String = ""
+    else
+      DebugPrint("Anonymous mode disabled")
+    end
+  end
+  
+  Controls.publish.EventHandler = function(ctl)
+    print("[MQTT] Publish button triggered")
+    PublishMessage()
+  end
+  
+  Controls.subscribe.EventHandler = function(ctl)
+    print("[MQTT] Subscribe button triggered")
+    Subscribe()
+  end
+  
+  Controls.unsubscribe.EventHandler = function(ctl)
+    print("[MQTT] Unsubscribe button triggered")
+    Unsubscribe()
+  end
+  
+  -- QoS Selection for Publish
+  for i = 1, 3 do
+    Controls.publish_qos_selector[i].EventHandler = function(ctl)
+      UpdatePublishQoS(i - 1)
+    end
+  end
+  
+  -- QoS Selection for Subscribe
+  for i = 1, 3 do
+    Controls.subscribe_qos_selector[i].EventHandler = function(ctl)
+      UpdateSubscribeQoS(i - 1)
+    end
+  end
+  
+end
