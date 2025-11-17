@@ -3,10 +3,10 @@
 
 PluginInfo = {
   Name = "Communication~MQTT Client",
-  Version = "1.0.1",
-  Id = "qsysc.mqtt.client.1.0.1",
+  Version = "0.0.1",
+  Id = "qsysc.mqtt.client.0.0.1",
   Description = "MQTT Client with anonymous authentication support",
-  Author = "Q-SYS Community",
+  Author = "5UP3R3D- HLD",
   ShowDebug = true
 }
 
