@@ -1,17 +1,17 @@
--- MQTT Client Plugin for QSC Q-SYS
--- Simple MQTT Client with Anonymous Mode Support
+-- MQTT Client Plugin for Q-SYS
+-- Simple MQTT Client
 
 PluginInfo = {
-  Name = "Communication~MQTT Client",
-  Version = "1.0.5",
-  Id = "qsysc.mqtt.client.1.0.5",
-  Description = "MQTT Client with anonymous authentication support",
-  Author = "Q-SYS Community",
+  Name = "MQTT Client",
+  Version = "0.0.5",
+  Id = "qsysc.mqtt.client.0.0.5",
+  Description = "MQTT Client v5",
+  Author = "5UP3R3D",
   ShowDebug = true
 }
 
 function GetColor(props)
-  return {102, 102, 102}
+  return {100, 100, 102}
 end
 
 function GetPrettyName(props)
@@ -99,7 +99,7 @@ function GetControls(props)
       Name = "publish_payload",
       ControlType = "Text",
       PinStyle = "Both",
-      UserPin = true
+      UserPin = false
     },
     {
       Name = "publish_qos",
@@ -113,21 +113,21 @@ function GetControls(props)
       ControlType = "Button",
       ButtonType = "Momentary",
       PinStyle = "Input",
-      UserPin = false
+      UserPin = true
     },
     {
       Name = "publish_qos_1",
       ControlType = "Button",
       ButtonType = "Momentary",
       PinStyle = "Input",
-      UserPin = false
+      UserPin = true
     },
     {
       Name = "publish_qos_2",
       ControlType = "Button",
       ButtonType = "Momentary",
       PinStyle = "Input",
-      UserPin = false
+      UserPin = true
     },
     {
       Name = "publish_retain",
@@ -141,7 +141,7 @@ function GetControls(props)
       ControlType = "Button",
       ButtonType = "Trigger",
       PinStyle = "Input",
-      UserPin = true
+      UserPin = false
     },
     -- Subscribe Controls
     {
@@ -162,21 +162,21 @@ function GetControls(props)
       ControlType = "Button",
       ButtonType = "Momentary",
       PinStyle = "Input",
-      UserPin = false
+      UserPin = true
     },
     {
       Name = "subscribe_qos_1",
       ControlType = "Button",
       ButtonType = "Momentary",
       PinStyle = "Input",
-      UserPin = false
+      UserPin = true
     },
     {
       Name = "subscribe_qos_2",
       ControlType = "Button",
       ButtonType = "Momentary",
       PinStyle = "Input",
-      UserPin = false
+      UserPin = true
     },
     {
       Name = "subscribe",
@@ -205,14 +205,14 @@ function GetControls(props)
       ControlType = "Indicator",
       IndicatorType = "Text",
       PinStyle = "Output",
-      UserPin = true
+      UserPin = false
     },
     {
       Name = "received_payload_raw",
       ControlType = "Indicator",
       IndicatorType = "Text",
       PinStyle = "Output",
-      UserPin = true
+      UserPin = false
     },
     {
       Name = "received_qos",
@@ -281,8 +281,8 @@ function GetControlLayout(props)
     table.insert(graphics, {
       Type = "GroupBox",
       Text = "MQTT Broker Connection",
-      Fill = {102, 102, 102},
-      CornerRadius = 8,
+      Fill = {119,139,165},
+      CornerRadius = 12,
       StrokeColor = {0, 0, 0},
       StrokeWidth = 1,
       Position = {5, 5},
@@ -440,7 +440,7 @@ function GetControlLayout(props)
     table.insert(graphics, {
       Type = "GroupBox",
       Text = "MQTT Publish",
-      Fill = {102, 102, 102},
+      Fill = {119,139,165},
       CornerRadius = 8,
       StrokeColor = {0, 0, 0},
       StrokeWidth = 1,
@@ -596,7 +596,7 @@ function GetControlLayout(props)
     table.insert(graphics, {
       Type = "GroupBox",
       Text = "MQTT Subscribe",
-      Fill = {102, 102, 102},
+      Fill = {119,139,165},
       CornerRadius = 8,
       StrokeColor = {0, 0, 0},
       StrokeWidth = 1,
@@ -1462,7 +1462,7 @@ if Controls then
   Controls.publish_retain.EventHandler = function(ctl)
     print(string.format("[MQTT] Retain button toggled: %s", tostring(ctl.Boolean)))
   end
-  
+
   -- QoS Selection for Publish
   Controls.publish_qos_0.EventHandler = function(ctl)
     print("[MQTT] Publish QoS 0 button pressed")
@@ -1494,5 +1494,5 @@ if Controls then
     print("[MQTT] Subscribe QoS 2 button pressed")
     UpdateSubscribeQoS(2)
   end
-  
+ 
 end
