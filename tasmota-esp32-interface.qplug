@@ -72,11 +72,10 @@ function GetControls(props)
     -- Connection Controls
     {
       Name = "protocol",
-      ControlType = "Text",
+      ControlType = "Indicator",
       IndicatorType = "Text",
-      PinStyle = "Both",
-      UserPin = true,
-      Count = 1
+      PinStyle = "Output",
+      UserPin = true
     },
     {
       Name = "protocol_http",
@@ -106,36 +105,31 @@ function GetControls(props)
       Name = "host",
       ControlType = "Text",
       PinStyle = "Both",
-      UserPin = true,
-      Count = 1
+      UserPin = true
     },
     {
       Name = "port",
       ControlType = "Text",
       PinStyle = "Both",
-      UserPin = true,
-      Count = 1
+      UserPin = true
     },
     {
       Name = "username",
       ControlType = "Text",
       PinStyle = "Both",
-      UserPin = true,
-      Count = 1
+      UserPin = true
     },
     {
       Name = "password",
       ControlType = "Text",
       PinStyle = "Both",
-      UserPin = true,
-      Count = 1
+      UserPin = true
     },
     {
       Name = "mqtt_topic",
       ControlType = "Text",
       PinStyle = "Both",
-      UserPin = true,
-      Count = 1
+      UserPin = true
     },
     {
       Name = "connect",
@@ -357,8 +351,7 @@ function GetControls(props)
       Name = "scheme",
       ControlType = "Text",
       PinStyle = "Both",
-      UserPin = true,
-      Count = 1
+      UserPin = true
     },
     {
       Name = "fade_speed",
@@ -412,8 +405,7 @@ function GetControls(props)
       Name = "custom_command",
       ControlType = "Text",
       PinStyle = "Both",
-      UserPin = true,
-      Count = 1
+      UserPin = true
     },
     {
       Name = "send_command",
