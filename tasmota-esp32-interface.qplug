@@ -1,12 +1,12 @@
 -- Tasmota ESP32 Interface Plugin for Q-SYS
 -- Comprehensive interface for Tasmota devices on ESP32 hardware
--- Supports HTTP/REST, MQTT, and WebSocket communication protocols
+-- Supports HTTP/REST and MQTT communication protocols
 
 PluginInfo = {
   Name = "Tasmota ESP32 Interface",
   Version = "1.0.0",
   Id = "qsysc.tasmota.esp32.interface.1.0.0",
-  Description = "Complete interface for Tasmota ESP32 devices supporting HTTP/REST, MQTT, and WebSocket protocols",
+  Description = "Complete interface for Tasmota ESP32 devices supporting HTTP/REST and MQTT protocols",
   Author = "Q-SYS Community",
   ShowDebug = true
 }
@@ -55,7 +55,7 @@ function GetProperties()
     {
       Name = "Default Protocol",
       Type = "enum",
-      Choices = {"HTTP", "MQTT", "WebSocket"},
+      Choices = {"HTTP", "MQTT"},
       Value = "HTTP"
     },
     {
@@ -143,14 +143,6 @@ function GetControls(props)
     },
     {
       Name = "protocol_mqtt",
-      ControlType = "Button",
-      ButtonType = "Momentary",
-      PinStyle = "Input",
-      UserPin = true,
-      Count = 1
-    },
-    {
-      Name = "protocol_websocket",
       ControlType = "Button",
       ButtonType = "Momentary",
       PinStyle = "Input",
@@ -609,13 +601,6 @@ function GetControlLayout(props)
       Position = {305, 30},
       Size = {80, 28},
       Legend = "MQTT"
-    }
-    
-    layout["protocol_websocket"] = {
-      PrettyName = "WebSocket",
-      Position = {395, 30},
-      Size = {90, 28},
-      Legend = "WebSocket"
     }
     
     -- Host/IP
@@ -1568,9 +1553,8 @@ if Controls then
   -- State Variables
   local active_socket = nil
   local mqtt_socket = nil
-  local ws_socket = nil
   local http_socket = nil
-  local current_protocol = "HTTP"
+  local current_protocol = Properties["Default Protocol"].Value
   local is_connected = false
   local packet_id = 1
   local keep_alive_timer = nil
@@ -1769,9 +1753,6 @@ if Controls then
     elseif current_protocol == "MQTT" then
       local topic = "cmnd/" .. Controls.mqtt_topic.String .. "/" .. command
       PublishMQTT(topic, "", 0, false)
-      
-    elseif current_protocol == "WebSocket" then
-      SendWebSocketMessage(command)
     end
   end
   
@@ -1978,66 +1959,6 @@ if Controls then
     elseif packet_type == 13 then -- PINGRESP
       DebugPrint("Rx", "MQTT PINGRESP received")
     end
-  end
-  
-  -- ========================================
-  -- WebSocket Implementation
-  -- ========================================
-  
-  local function CreateWebSocketHandshake()
-    local key = Crypto.Base64Encode(tostring(math.random()) .. tostring(os.time()))
-    local handshake = string.format("GET /ws HTTP/1.1\r\n")
-    handshake = handshake .. string.format("Host: %s\r\n", Controls.host.String)
-    handshake = handshake .. "Upgrade: websocket\r\n"
-    handshake = handshake .. "Connection: Upgrade\r\n"
-    handshake = handshake .. string.format("Sec-WebSocket-Key: %s\r\n", key)
-    handshake = handshake .. "Sec-WebSocket-Version: 13\r\n"
-    handshake = handshake .. "\r\n"
-    return handshake
-  end
-  
-  local function SendWebSocketMessage(message)
-    DebugPrint("Function", "SendWebSocketMessage: " .. message)
-    
-    if not ws_socket or not ws_socket.IsConnected then
-      DebugPrint("Function", "WebSocket not connected")
-      return
-    end
-    
-    -- Build WebSocket frame (text frame, FIN=1, opcode=0x1)
-    local frame = string.char(0x81) -- FIN + Text frame
-    local len = #message
-    
-    if len < 126 then
-      frame = frame .. string.char(0x80 + len) -- Masked + length
-    elseif len < 65536 then
-      frame = frame .. string.char(0xFE) -- Masked + extended length (16-bit)
-      frame = frame .. string.char(math.floor(len / 256), len % 256)
-    else
-      -- Length > 65535 not supported in this implementation
-      DebugPrint("Function", "Message too long for WebSocket")
-      return
-    end
-    
-    -- Add masking key (4 random bytes)
-    local mask = {}
-    for i = 1, 4 do
-      mask[i] = math.random(0, 255)
-      frame = frame .. string.char(mask[i])
-    end
-    
-    -- Apply mask to payload
-    local masked_payload = ""
-    for i = 1, len do
-      local byte = string.byte(message, i)
-      local masked_byte = byte ~ mask[((i - 1) % 4) + 1]
-      masked_payload = masked_payload .. string.char(masked_byte)
-    end
-    
-    frame = frame .. masked_payload
-    
-    DebugPrint("Tx", "WebSocket frame: " .. BytesToHex(frame:sub(1, math.min(50, #frame))))
-    ws_socket:Write(frame)
   end
   
   -- ========================================
@@ -2289,71 +2210,6 @@ if Controls then
     mqtt_socket:Connect(Controls.host.String, port)
   end
   
-  local function ConnectWebSocket()
-    DebugPrint("Function", "ConnectWebSocket")
-    current_protocol = "WebSocket"
-    Controls.protocol.String = "WebSocket"
-    
-    if ws_socket then
-      ws_socket:Disconnect()
-    end
-    
-    ws_socket = TcpSocket.New()
-    ws_socket.ReadTimeout = 0
-    ws_socket.WriteTimeout = Properties["Connection Timeout"].Value
-    
-    ws_socket.Connected = function(sock)
-      DebugPrint("Function", "WebSocket connected")
-      UpdateStatus("Connecting", "WebSocket handshake...")
-      
-      local handshake = CreateWebSocketHandshake()
-      DebugPrint("Tx", "WebSocket handshake:\n" .. handshake)
-      sock:Write(handshake)
-    end
-    
-    ws_socket.Reconnect = function(sock)
-      DebugPrint("Function", "WebSocket reconnect")
-      UpdateStatus("Connecting", "WebSocket reconnecting...")
-    end
-    
-    ws_socket.Data = function(sock)
-      local data = sock:Read(sock.BufferLength)
-      if not data or #data == 0 then return end
-      
-      DebugPrint("Rx", "WebSocket data: " .. data)
-      
-      -- Check for HTTP upgrade response
-      if data:match("HTTP/1.1 101") then
-        DebugPrint("Rx", "WebSocket upgrade successful")
-        UpdateStatus("Connected", "WebSocket connected")
-        is_connected = true
-      else
-        -- Parse WebSocket frames (simplified)
-        ParseTasmotaResponse("websocket", data)
-      end
-    end
-    
-    ws_socket.Closed = function(sock)
-      DebugPrint("Function", "WebSocket closed")
-      UpdateStatus("Disconnected", "WebSocket connection closed")
-      is_connected = false
-    end
-    
-    ws_socket.Error = function(sock, err)
-      DebugPrint("Function", "WebSocket error: " .. err)
-      UpdateStatus("Error", "WebSocket error: " .. err)
-    end
-    
-    ws_socket.Timeout = function(sock)
-      DebugPrint("Function", "WebSocket timeout")
-      UpdateStatus("Error", "WebSocket connection timeout")
-    end
-    
-    local port = tonumber(Controls.port.String) or 80
-    DebugPrint("Tx", string.format("Connecting to WebSocket %s:%d", Controls.host.String, port))
-    ws_socket:Connect(Controls.host.String, port)
-  end
-  
   local function Disconnect()
     DebugPrint("Function", "Disconnect")
     
@@ -2375,10 +2231,6 @@ if Controls then
       mqtt_socket:Disconnect()
     end
     
-    if ws_socket and ws_socket.IsConnected then
-      ws_socket:Disconnect()
-    end
-    
     is_connected = false
     UpdateStatus("Disconnected", "Disconnected")
   end
@@ -2390,43 +2242,55 @@ if Controls then
   -- Connection Controls
   Controls.protocol_http.EventHandler = function(ctl)
     if ctl.Boolean then
-      if is_connected then
-        Disconnect()
-      end
-      ConnectHTTP()
+      current_protocol = "HTTP"
+      Controls.protocol.String = "HTTP"
+      print("[Tasmota] Protocol selected: HTTP")
+      -- DO NOT connect here - user must press Connect button
     end
   end
   
   Controls.protocol_mqtt.EventHandler = function(ctl)
     if ctl.Boolean then
-      if is_connected then
-        Disconnect()
-      end
-      ConnectMQTT()
-    end
-  end
-  
-  Controls.protocol_websocket.EventHandler = function(ctl)
-    if ctl.Boolean then
-      if is_connected then
-        Disconnect()
-      end
-      ConnectWebSocket()
+      current_protocol = "MQTT"
+      Controls.protocol.String = "MQTT"
+      print("[Tasmota] Protocol selected: MQTT")
+      -- DO NOT connect here - user must press Connect button
     end
   end
   
   Controls.connect.EventHandler = function(ctl)
     if ctl.Boolean then
-      local protocol = Properties["Default Protocol"].Value
-      if protocol == "HTTP" then
+      -- User pressed Connect - establish connection using selected protocol
+      print("[Tasmota] Connecting using protocol: " .. current_protocol)
+      Controls.connection_state.String = "Connecting..."
+      Controls.connection_status.Value = 1  -- Initializing
+      
+      -- Validate MQTT broker address
+      if current_protocol == "MQTT" then
+        if Controls.host.String == "" then
+          print("[Tasmota] ERROR: MQTT broker address must be set")
+          Controls.connection_state.String = "Error: MQTT broker address required"
+          Controls.connection_status.Value = 5  -- Fault
+          Controls.connect.Boolean = false
+          return
+        end
+      end
+      
+      -- Disconnect any other active protocol first
+      Disconnect()
+      
+      -- Connect with selected protocol
+      if current_protocol == "HTTP" then
         ConnectHTTP()
-      elseif protocol == "MQTT" then
+      elseif current_protocol == "MQTT" then
         ConnectMQTT()
-      elseif protocol == "WebSocket" then
-        ConnectWebSocket()
       end
     else
+      -- User pressed Disconnect
+      print("[Tasmota] Disconnecting...")
       Disconnect()
+      Controls.connection_state.String = "Disconnected"
+      Controls.connection_status.Value = 2  -- Compromised/Disconnected
     end
   end
   
@@ -2565,7 +2429,8 @@ if Controls then
   -- ========================================
   
   -- Set default values
-  Controls.protocol.String = Properties["Default Protocol"].Value
+  current_protocol = Properties["Default Protocol"].Value
+  Controls.protocol.String = current_protocol
   Controls.poll_interval.Value = 5
   
   -- Set default port based on protocol
@@ -2577,7 +2442,7 @@ if Controls then
     end
   end
   
-  UpdateStatus("Disconnected", "Ready to connect")
+  UpdateStatus("Disconnected", "Select protocol above, then press Connect")
   
   -- Auto-connect if enabled
   if Properties["Auto Connect"].Value then
