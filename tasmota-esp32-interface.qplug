@@ -57,6 +57,62 @@ function GetProperties()
       Type = "enum",
       Choices = {"HTTP", "MQTT", "WebSocket"},
       Value = "HTTP"
+    },
+    {
+      Name = "Power Relay Count",
+      Type = "integer",
+      Min = 0,
+      Max = 8,
+      Value = 8
+    },
+    {
+      Name = "GPIO Output Count",
+      Type = "integer",
+      Min = 0,
+      Max = 8,
+      Value = 8
+    },
+    {
+      Name = "GPIO Input Count",
+      Type = "integer",
+      Min = 0,
+      Max = 8,
+      Value = 8
+    },
+    {
+      Name = "PWM Count",
+      Type = "integer",
+      Min = 0,
+      Max = 4,
+      Value = 4
+    },
+    {
+      Name = "Analog Input Count",
+      Type = "integer",
+      Min = 0,
+      Max = 4,
+      Value = 4
+    },
+    {
+      Name = "Temperature Sensor Count",
+      Type = "integer",
+      Min = 0,
+      Max = 4,
+      Value = 4
+    },
+    {
+      Name = "Humidity Sensor Count",
+      Type = "integer",
+      Min = 0,
+      Max = 4,
+      Value = 4
+    },
+    {
+      Name = "Pressure Sensor Count",
+      Type = "integer",
+      Min = 0,
+      Max = 2,
+      Value = 2
     }
   }
   return props
@@ -166,14 +222,14 @@ function GetControls(props)
       Count = 1
     },
     
-    -- Power/Relay Controls (8 relays)
+    -- Power/Relay Controls (configurable count)
     {
       Name = "power",
       ControlType = "Button",
       ButtonType = "Toggle",
       PinStyle = "Both",
       UserPin = true,
-      Count = 8
+      Count = props["Power Relay Count"].Value
     },
     {
       Name = "power_status",
@@ -181,31 +237,31 @@ function GetControls(props)
       IndicatorType = "Led",
       PinStyle = "Output",
       UserPin = true,
-      Count = 8
+      Count = props["Power Relay Count"].Value
     },
     {
       Name = "pulse_time",
       ControlType = "Text",
       PinStyle = "Both",
       UserPin = true,
-      Count = 8
+      Count = props["Power Relay Count"].Value
     },
     {
       Name = "power_on_state",
       ControlType = "Text",
       PinStyle = "Both",
       UserPin = true,
-      Count = 8
+      Count = props["Power Relay Count"].Value
     },
     
-    -- Sensor Displays
+    -- Sensor Displays (configurable counts)
     {
       Name = "temperature",
       ControlType = "Indicator",
       IndicatorType = "Text",
       PinStyle = "Output",
       UserPin = true,
-      Count = 4
+      Count = props["Temperature Sensor Count"].Value
     },
     {
       Name = "humidity",
@@ -213,7 +269,7 @@ function GetControls(props)
       IndicatorType = "Text",
       PinStyle = "Output",
       UserPin = true,
-      Count = 4
+      Count = props["Humidity Sensor Count"].Value
     },
     {
       Name = "pressure",
@@ -221,7 +277,7 @@ function GetControls(props)
       IndicatorType = "Text",
       PinStyle = "Output",
       UserPin = true,
-      Count = 2
+      Count = props["Pressure Sensor Count"].Value
     },
     {
       Name = "voltage",
@@ -364,14 +420,14 @@ function GetControls(props)
       Count = 1
     },
     
-    -- GPIO Controls
+    -- GPIO Controls (configurable counts)
     {
       Name = "gpio_out",
       ControlType = "Button",
       ButtonType = "Toggle",
       PinStyle = "Both",
       UserPin = true,
-      Count = 8
+      Count = props["GPIO Output Count"].Value
     },
     {
       Name = "gpio_in",
@@ -379,7 +435,7 @@ function GetControls(props)
       IndicatorType = "Led",
       PinStyle = "Output",
       UserPin = true,
-      Count = 8
+      Count = props["GPIO Input Count"].Value
     },
     {
       Name = "pwm",
@@ -389,7 +445,7 @@ function GetControls(props)
       Max = 1023,
       PinStyle = "Both",
       UserPin = true,
-      Count = 4
+      Count = props["PWM Count"].Value
     },
     {
       Name = "analog_in",
@@ -397,7 +453,7 @@ function GetControls(props)
       IndicatorType = "Text",
       PinStyle = "Output",
       UserPin = true,
-      Count = 4
+      Count = props["Analog Input Count"].Value
     },
     
     -- Custom Command Interface
@@ -439,7 +495,7 @@ function GetControls(props)
       IndicatorType = "Text",
       PinStyle = "Output",
       UserPin = true,
-      Count = 8
+      Count = props["Power Relay Count"].Value
     },
     {
       Name = "wifi_rssi",
@@ -709,7 +765,7 @@ function GetControlLayout(props)
       Size = {490, 470}
     })
     
-    for i = 1, 8 do
+    for i = 1, props["Power Relay Count"].Value do
       local yPos = 30 + ((i-1) * 55)
       
       -- Relay Label
@@ -723,7 +779,7 @@ function GetControlLayout(props)
       })
       
       -- Power Toggle
-      layout["power " .. i] = {
+      layout["power"][i] = {
         PrettyName = "Power " .. i,
         Position = {85, yPos + 5},
         Size = {80, 30},
@@ -731,7 +787,7 @@ function GetControlLayout(props)
       }
       
       -- Status LED
-      layout["power_status " .. i] = {
+      layout["power_status"][i] = {
         PrettyName = "Power " .. i .. " Status",
         Position = {175, yPos + 10},
         Size = {20, 20}
@@ -747,7 +803,7 @@ function GetControlLayout(props)
         HTextAlign = "Right"
       })
       
-      layout["pulse_time " .. i] = {
+      layout["pulse_time"][i] = {
         PrettyName = "Pulse Time " .. i,
         Position = {255, yPos + 7},
         Size = {80, 26},
@@ -764,7 +820,7 @@ function GetControlLayout(props)
         HTextAlign = "Right"
       })
       
-      layout["power_on_state " .. i] = {
+      layout["power_on_state"][i] = {
         PrettyName = "Power On State " .. i,
         Position = {405, yPos + 7},
         Size = {75, 26},
@@ -786,7 +842,7 @@ function GetControlLayout(props)
       Size = {240, 140}
     })
     
-    for i = 1, 4 do
+    for i = 1, props["Temperature Sensor Count"].Value do
       local yPos = 25 + ((i-1) * 28)
       
       table.insert(graphics, {
@@ -798,7 +854,7 @@ function GetControlLayout(props)
         HTextAlign = "Right"
       })
       
-      layout["temperature " .. i] = {
+      layout["temperature"][i] = {
         PrettyName = "Temperature " .. i,
         Position = {80, yPos - 2},
         Size = {150, 24},
@@ -817,7 +873,7 @@ function GetControlLayout(props)
       Size = {240, 140}
     })
     
-    for i = 1, 4 do
+    for i = 1, props["Humidity Sensor Count"].Value do
       local yPos = 25 + ((i-1) * 28)
       
       table.insert(graphics, {
@@ -829,7 +885,7 @@ function GetControlLayout(props)
         HTextAlign = "Right"
       })
       
-      layout["humidity " .. i] = {
+      layout["humidity"][i] = {
         PrettyName = "Humidity " .. i,
         Position = {330, yPos - 2},
         Size = {150, 24},
@@ -848,7 +904,7 @@ function GetControlLayout(props)
       Size = {240, 85}
     })
     
-    for i = 1, 2 do
+    for i = 1, props["Pressure Sensor Count"].Value do
       local yPos = 175 + ((i-1) * 28)
       
       table.insert(graphics, {
@@ -860,7 +916,7 @@ function GetControlLayout(props)
         HTextAlign = "Right"
       })
       
-      layout["pressure " .. i] = {
+      layout["pressure"][i] = {
         PrettyName = "Pressure " .. i,
         Position = {80, yPos - 2},
         Size = {150, 24},
@@ -1191,7 +1247,7 @@ function GetControlLayout(props)
       Size = {240, 230}
     })
     
-    for i = 1, 8 do
+    for i = 1, props["GPIO Output Count"].Value do
       local yPos = 25 + ((i-1) * 26)
       
       table.insert(graphics, {
@@ -1203,26 +1259,28 @@ function GetControlLayout(props)
         HTextAlign = "Right"
       })
       
-      layout["gpio_out " .. i] = {
+      layout["gpio_out"][i] = {
         PrettyName = "GPIO Output " .. i,
         Position = {80, yPos - 2},
         Size = {70, 24},
         Legend = "Out " .. i
       }
       
-      layout["gpio_in " .. i] = {
-        PrettyName = "GPIO Input " .. i,
-        Position = {160, yPos},
-        Size = {20, 20}
-      }
-      
-      table.insert(graphics, {
-        Type = "Label",
-        Text = "In",
-        Position = {185, yPos},
-        Size = {25, 20},
-        FontSize = 9
-      })
+      if i <= props["GPIO Input Count"].Value then
+        layout["gpio_in"][i] = {
+          PrettyName = "GPIO Input " .. i,
+          Position = {160, yPos},
+          Size = {20, 20}
+        }
+        
+        table.insert(graphics, {
+          Type = "Label",
+          Text = "In",
+          Position = {185, yPos},
+          Size = {25, 20},
+          FontSize = 9
+        })
+      end
     end
     
     table.insert(graphics, {
@@ -1236,7 +1294,7 @@ function GetControlLayout(props)
       Size = {240, 120}
     })
     
-    for i = 1, 4 do
+    for i = 1, props["PWM Count"].Value do
       local xPos = 265 + ((i-1) % 2) * 110
       local yPos = 25 + math.floor((i-1) / 2) * 55
       
@@ -1249,7 +1307,7 @@ function GetControlLayout(props)
         HTextAlign = "Right"
       })
       
-      layout["pwm " .. i] = {
+      layout["pwm"][i] = {
         PrettyName = "PWM " .. i .. " (0-1023)",
         Position = {xPos, yPos + 22},
         Size = {90, 42},
@@ -1268,7 +1326,7 @@ function GetControlLayout(props)
       Size = {240, 100}
     })
     
-    for i = 1, 4 do
+    for i = 1, props["Analog Input Count"].Value do
       local yPos = 155 + ((i-1) % 2) * 28
       local xPos = 265 + math.floor((i-1) / 2) * 110
       
@@ -1281,7 +1339,7 @@ function GetControlLayout(props)
         HTextAlign = "Right"
       })
       
-      layout["analog_in " .. i] = {
+      layout["analog_in"][i] = {
         PrettyName = "Analog Input " .. i,
         Position = {xPos + 45, yPos - 2},
         Size = {55, 24},
@@ -1469,7 +1527,7 @@ function GetControlLayout(props)
       HTextAlign = "Right"
     })
     
-    layout["friendly_name 1"] = {
+    layout["friendly_name"][1] = {
       PrettyName = "Friendly Name 1",
       Position = {125, 197},
       Size = {345, 26},
@@ -1980,7 +2038,7 @@ if Controls then
       Controls.power_status[1].Boolean = (data.POWER == "ON")
     end
     
-    for i = 1, 8 do
+    for i = 1, Properties["Power Relay Count"].Value do
       local key = "POWER" .. i
       if data[key] ~= nil then
         Controls.power[i].Boolean = (data[key] == "ON")
@@ -2061,7 +2119,7 @@ if Controls then
       if data.Status.FriendlyName then
         if type(data.Status.FriendlyName) == "table" then
           for i, name in ipairs(data.Status.FriendlyName) do
-            if i <= 8 then
+            if i <= Properties["Power Relay Count"].Value then
               Controls.friendly_name[i].String = name
             end
           end
@@ -2358,7 +2416,7 @@ if Controls then
   end
   
   -- Power Controls
-  for i = 1, 8 do
+  for i = 1, Properties["Power Relay Count"].Value do
     Controls.power[i].EventHandler = function(ctl)
       local cmd = string.format("Power%d %s", i, ctl.Boolean and "ON" or "OFF")
       SendTasmotaCommand(cmd, function(response)
@@ -2450,7 +2508,7 @@ if Controls then
   end
   
   -- GPIO Controls
-  for i = 1, 8 do
+  for i = 1, Properties["GPIO Output Count"].Value do
     Controls.gpio_out[i].EventHandler = function(ctl)
       -- Note: GPIO pin numbers need to be configured
       -- This is a placeholder - actual implementation would need GPIO mapping
@@ -2461,7 +2519,7 @@ if Controls then
     end
   end
   
-  for i = 1, 4 do
+  for i = 1, Properties["PWM Count"].Value do
     Controls.pwm[i].EventHandler = function(ctl)
       local cmd = string.format("Pwm%d %d", i, ctl.Value)
       SendTasmotaCommand(cmd, function(response)
