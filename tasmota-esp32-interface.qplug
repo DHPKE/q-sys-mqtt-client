@@ -1976,15 +1976,15 @@ if Controls then
     
     -- Parse power states
     if data.POWER ~= nil then
-      Controls["power 1"].Boolean = (data.POWER == "ON")
-      Controls["power_status 1"].Boolean = (data.POWER == "ON")
+      Controls.power[1].Boolean = (data.POWER == "ON")
+      Controls.power_status[1].Boolean = (data.POWER == "ON")
     end
     
     for i = 1, 8 do
       local key = "POWER" .. i
       if data[key] ~= nil then
-        Controls["power " .. i].Boolean = (data[key] == "ON")
-        Controls["power_status " .. i].Boolean = (data[key] == "ON")
+        Controls.power[i].Boolean = (data[key] == "ON")
+        Controls.power_status[i].Boolean = (data[key] == "ON")
       end
     end
     
@@ -1995,30 +1995,30 @@ if Controls then
       -- Temperature sensors
       if sensors.DS18B20 then
         if sensors.DS18B20.Temperature then
-          Controls["temperature 1"].String = string.format("%.1f °C", sensors.DS18B20.Temperature)
+          Controls.temperature[1].String = string.format("%.1f °C", sensors.DS18B20.Temperature)
         end
       end
       
       if sensors.DHT11 or sensors.DHT22 or sensors.AM2301 then
         local dht = sensors.DHT11 or sensors.DHT22 or sensors.AM2301
         if dht.Temperature then
-          Controls["temperature 1"].String = string.format("%.1f °C", dht.Temperature)
+          Controls.temperature[1].String = string.format("%.1f °C", dht.Temperature)
         end
         if dht.Humidity then
-          Controls["humidity 1"].String = string.format("%.1f %%", dht.Humidity)
+          Controls.humidity[1].String = string.format("%.1f %%", dht.Humidity)
         end
       end
       
       if sensors.BME280 or sensors.BMP280 then
         local bme = sensors.BME280 or sensors.BMP280
         if bme.Temperature then
-          Controls["temperature 1"].String = string.format("%.1f °C", bme.Temperature)
+          Controls.temperature[1].String = string.format("%.1f °C", bme.Temperature)
         end
         if bme.Humidity then
-          Controls["humidity 1"].String = string.format("%.1f %%", bme.Humidity)
+          Controls.humidity[1].String = string.format("%.1f %%", bme.Humidity)
         end
         if bme.Pressure then
-          Controls["pressure 1"].String = string.format("%.1f hPa", bme.Pressure)
+          Controls.pressure[1].String = string.format("%.1f hPa", bme.Pressure)
         end
       end
       
@@ -2062,7 +2062,7 @@ if Controls then
         if type(data.Status.FriendlyName) == "table" then
           for i, name in ipairs(data.Status.FriendlyName) do
             if i <= 8 then
-              Controls["friendly_name " .. i].String = name
+              Controls.friendly_name[i].String = name
             end
           end
         end
@@ -2359,14 +2359,14 @@ if Controls then
   
   -- Power Controls
   for i = 1, 8 do
-    Controls["power " .. i].EventHandler = function(ctl)
+    Controls.power[i].EventHandler = function(ctl)
       local cmd = string.format("Power%d %s", i, ctl.Boolean and "ON" or "OFF")
       SendTasmotaCommand(cmd, function(response)
         ParseTasmotaResponse("power", response)
       end)
     end
     
-    Controls["pulse_time " .. i].EventHandler = function(ctl)
+    Controls.pulse_time[i].EventHandler = function(ctl)
       if ctl.String ~= "" then
         local cmd = string.format("PulseTime%d %s", i, ctl.String)
         SendTasmotaCommand(cmd, function(response)
@@ -2375,7 +2375,7 @@ if Controls then
       end
     end
     
-    Controls["power_on_state " .. i].EventHandler = function(ctl)
+    Controls.power_on_state[i].EventHandler = function(ctl)
       if ctl.String ~= "" then
         local cmd = string.format("PowerOnState%d %s", i, ctl.String)
         SendTasmotaCommand(cmd, function(response)
@@ -2451,7 +2451,7 @@ if Controls then
   
   -- GPIO Controls
   for i = 1, 8 do
-    Controls["gpio_out " .. i].EventHandler = function(ctl)
+    Controls.gpio_out[i].EventHandler = function(ctl)
       -- Note: GPIO pin numbers need to be configured
       -- This is a placeholder - actual implementation would need GPIO mapping
       local cmd = string.format("Gpio%d %d", i, ctl.Boolean and 1 or 0)
@@ -2462,7 +2462,7 @@ if Controls then
   end
   
   for i = 1, 4 do
-    Controls["pwm " .. i].EventHandler = function(ctl)
+    Controls.pwm[i].EventHandler = function(ctl)
       local cmd = string.format("Pwm%d %d", i, ctl.Value)
       SendTasmotaCommand(cmd, function(response)
         ParseTasmotaResponse("pwm", response)
