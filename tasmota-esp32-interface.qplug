@@ -1,0 +1,2519 @@
+-- Tasmota ESP32 Interface Plugin for Q-SYS
+-- Comprehensive interface for Tasmota devices on ESP32 hardware
+-- Supports HTTP/REST, MQTT, and WebSocket communication protocols
+
+PluginInfo = {
+  Name = "Tasmota ESP32 Interface",
+  Version = "1.0.0",
+  Id = "qsysc.tasmota.esp32.interface.1.0.0",
+  Description = "Complete interface for Tasmota ESP32 devices supporting HTTP/REST, MQTT, and WebSocket protocols",
+  Author = "Q-SYS Community",
+  ShowDebug = true
+}
+
+function GetColor(props)
+  return {87, 155, 252}
+end
+
+function GetPrettyName(props)
+  return "Tasmota ESP32 v" .. PluginInfo.Version
+end
+
+-- Properties
+function GetProperties()
+  local props = {
+    {
+      Name = "Debug Print",
+      Type = "enum",
+      Choices = {"None", "Tx/Rx", "Tx", "Rx", "Function Calls", "All"},
+      Value = "All"
+    },
+    {
+      Name = "Auto Connect",
+      Type = "boolean",
+      Value = true
+    },
+    {
+      Name = "Parse JSON",
+      Type = "boolean",
+      Value = true
+    },
+    {
+      Name = "Connection Timeout",
+      Type = "integer",
+      Min = 5,
+      Max = 60,
+      Value = 10
+    },
+    {
+      Name = "Retry Attempts",
+      Type = "integer",
+      Min = 0,
+      Max = 10,
+      Value = 3
+    },
+    {
+      Name = "Default Protocol",
+      Type = "enum",
+      Choices = {"HTTP", "MQTT", "WebSocket"},
+      Value = "HTTP"
+    }
+  }
+  return props
+end
+
+function RectifyProperties(props)
+  return props
+end
+
+-- Define Controls
+function GetControls(props)
+  local ctls = {
+    -- Connection Controls
+    {
+      Name = "protocol",
+      ControlType = "Text",
+      IndicatorType = "Text",
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "protocol_http",
+      ControlType = "Button",
+      ButtonType = "Momentary",
+      PinStyle = "Input",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "protocol_mqtt",
+      ControlType = "Button",
+      ButtonType = "Momentary",
+      PinStyle = "Input",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "protocol_websocket",
+      ControlType = "Button",
+      ButtonType = "Momentary",
+      PinStyle = "Input",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "host",
+      ControlType = "Text",
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "port",
+      ControlType = "Text",
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "username",
+      ControlType = "Text",
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "password",
+      ControlType = "Text",
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "mqtt_topic",
+      ControlType = "Text",
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "connect",
+      ControlType = "Button",
+      ButtonType = "Toggle",
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "connection_status",
+      ControlType = "Indicator",
+      IndicatorType = "Status",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "connection_state",
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "poll_interval",
+      ControlType = "Knob",
+      ControlUnit = "Integer",
+      Min = 1,
+      Max = 60,
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 1
+    },
+    
+    -- Power/Relay Controls (8 relays)
+    {
+      Name = "power",
+      ControlType = "Button",
+      ButtonType = "Toggle",
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 8
+    },
+    {
+      Name = "power_status",
+      ControlType = "Indicator",
+      IndicatorType = "Led",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 8
+    },
+    {
+      Name = "pulse_time",
+      ControlType = "Text",
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 8
+    },
+    {
+      Name = "power_on_state",
+      ControlType = "Text",
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 8
+    },
+    
+    -- Sensor Displays
+    {
+      Name = "temperature",
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 4
+    },
+    {
+      Name = "humidity",
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 4
+    },
+    {
+      Name = "pressure",
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 2
+    },
+    {
+      Name = "voltage",
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "current",
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "power_watts",
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "energy_kwh",
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    
+    -- Light Controls
+    {
+      Name = "dimmer",
+      ControlType = "Knob",
+      ControlUnit = "Integer",
+      Min = 0,
+      Max = 100,
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "color_r",
+      ControlType = "Knob",
+      ControlUnit = "Integer",
+      Min = 0,
+      Max = 255,
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "color_g",
+      ControlType = "Knob",
+      ControlUnit = "Integer",
+      Min = 0,
+      Max = 255,
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "color_b",
+      ControlType = "Knob",
+      ControlUnit = "Integer",
+      Min = 0,
+      Max = 255,
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "color_w",
+      ControlType = "Knob",
+      ControlUnit = "Integer",
+      Min = 0,
+      Max = 255,
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "color_temp",
+      ControlType = "Knob",
+      ControlUnit = "Integer",
+      Min = 153,
+      Max = 500,
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "hsb_h",
+      ControlType = "Knob",
+      ControlUnit = "Integer",
+      Min = 0,
+      Max = 360,
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "hsb_s",
+      ControlType = "Knob",
+      ControlUnit = "Integer",
+      Min = 0,
+      Max = 100,
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "hsb_b",
+      ControlType = "Knob",
+      ControlUnit = "Integer",
+      Min = 0,
+      Max = 100,
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "scheme",
+      ControlType = "Text",
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "fade_speed",
+      ControlType = "Knob",
+      ControlUnit = "Integer",
+      Min = 0,
+      Max = 20,
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 1
+    },
+    
+    -- GPIO Controls
+    {
+      Name = "gpio_out",
+      ControlType = "Button",
+      ButtonType = "Toggle",
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 8
+    },
+    {
+      Name = "gpio_in",
+      ControlType = "Indicator",
+      IndicatorType = "Led",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 8
+    },
+    {
+      Name = "pwm",
+      ControlType = "Knob",
+      ControlUnit = "Integer",
+      Min = 0,
+      Max = 1023,
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 4
+    },
+    {
+      Name = "analog_in",
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 4
+    },
+    
+    -- Custom Command Interface
+    {
+      Name = "custom_command",
+      ControlType = "Text",
+      PinStyle = "Both",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "send_command",
+      ControlType = "Button",
+      ButtonType = "Trigger",
+      PinStyle = "Input",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "command_response",
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    
+    -- Status & Info
+    {
+      Name = "device_name",
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "friendly_name",
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 8
+    },
+    {
+      Name = "wifi_rssi",
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "uptime",
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "ip_address",
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "firmware_version",
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "heap_memory",
+      ControlType = "Indicator",
+      IndicatorType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    }
+  }
+  return ctls
+end
+
+
+-- Define Pages
+function GetPages(props)
+  local pages = {
+    {name = "Connection"},
+    {name = "Power & Relays"},
+    {name = "Sensors"},
+    {name = "Lighting"},
+    {name = "GPIO & Advanced"},
+    {name = "Status & Info"}
+  }
+  return pages
+end
+
+function GetComponents(props)
+  return {}
+end
+
+-- Define Layout
+function GetControlLayout(props)
+  local layout = {}
+  local graphics = {}
+  
+  local CurrentPage = props["page_index"].Value
+  
+  -- PAGE 1: Connection
+  if CurrentPage == 1 then
+    
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "Connection Settings",
+      Fill = {87, 155, 252},
+      CornerRadius = 12,
+      StrokeColor = {0, 0, 0},
+      StrokeWidth = 1,
+      Position = {5, 5},
+      Size = {490, 380}
+    })
+    
+    -- Protocol Selection
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Protocol:",
+      Position = {15, 35},
+      Size = {80, 20},
+      FontSize = 12,
+      HTextAlign = "Right"
+    })
+    
+    layout["protocol"] = {
+      PrettyName = "Current Protocol",
+      Position = {105, 32},
+      Size = {100, 25},
+      FontSize = 12
+    }
+    
+    layout["protocol_http"] = {
+      PrettyName = "HTTP",
+      Position = {215, 30},
+      Size = {80, 28},
+      Legend = "HTTP"
+    }
+    
+    layout["protocol_mqtt"] = {
+      PrettyName = "MQTT",
+      Position = {305, 30},
+      Size = {80, 28},
+      Legend = "MQTT"
+    }
+    
+    layout["protocol_websocket"] = {
+      PrettyName = "WebSocket",
+      Position = {395, 30},
+      Size = {90, 28},
+      Legend = "WebSocket"
+    }
+    
+    -- Host/IP
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Host/IP:",
+      Position = {15, 75},
+      Size = {80, 20},
+      FontSize = 12,
+      HTextAlign = "Right"
+    })
+    
+    layout["host"] = {
+      PrettyName = "Host/IP Address",
+      Position = {105, 72},
+      Size = {200, 25},
+      FontSize = 12
+    }
+    
+    -- Port
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Port:",
+      Position = {315, 75},
+      Size = {40, 20},
+      FontSize = 12,
+      HTextAlign = "Right"
+    })
+    
+    layout["port"] = {
+      PrettyName = "Port",
+      Position = {365, 72},
+      Size = {120, 25},
+      FontSize = 12
+    }
+    
+    -- Username
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Username:",
+      Position = {15, 110},
+      Size = {80, 20},
+      FontSize = 12,
+      HTextAlign = "Right"
+    })
+    
+    layout["username"] = {
+      PrettyName = "Username",
+      Position = {105, 107},
+      Size = {380, 25},
+      FontSize = 12
+    }
+    
+    -- Password
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Password:",
+      Position = {15, 145},
+      Size = {80, 20},
+      FontSize = 12,
+      HTextAlign = "Right"
+    })
+    
+    layout["password"] = {
+      PrettyName = "Password",
+      Position = {105, 142},
+      Size = {380, 25},
+      FontSize = 12
+    }
+    
+    -- MQTT Topic
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "MQTT Topic:",
+      Position = {15, 180},
+      Size = {80, 20},
+      FontSize = 12,
+      HTextAlign = "Right"
+    })
+    
+    layout["mqtt_topic"] = {
+      PrettyName = "MQTT Topic (for MQTT mode)",
+      Position = {105, 177},
+      Size = {380, 25},
+      FontSize = 12
+    }
+    
+    -- Poll Interval
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Poll Interval (s):",
+      Position = {15, 220},
+      Size = {80, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["poll_interval"] = {
+      PrettyName = "HTTP Poll Interval",
+      Position = {105, 212},
+      Size = {100, 36},
+      FontSize = 12
+    }
+    
+    -- Connection Status
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Status:",
+      Position = {15, 265},
+      Size = {80, 20},
+      FontSize = 12,
+      HTextAlign = "Right"
+    })
+    
+    layout["connection_status"] = {
+      PrettyName = "Connection Status",
+      Position = {105, 260},
+      Size = {40, 30}
+    }
+    
+    layout["connection_state"] = {
+      PrettyName = "Connection State",
+      Position = {155, 262},
+      Size = {330, 26},
+      FontSize = 11
+    }
+    
+    -- Connect Button
+    layout["connect"] = {
+      PrettyName = "Connect/Disconnect",
+      Position = {105, 310},
+      Size = {380, 60},
+      Legend = "Connect"
+    }
+    
+  -- PAGE 2: Power & Relays
+  elseif CurrentPage == 2 then
+    
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "Power Controls (Relays 1-8)",
+      Fill = {100, 180, 100},
+      CornerRadius = 12,
+      StrokeColor = {0, 0, 0},
+      StrokeWidth = 1,
+      Position = {5, 5},
+      Size = {490, 470}
+    })
+    
+    for i = 1, 8 do
+      local yPos = 30 + ((i-1) * 55)
+      
+      -- Relay Label
+      table.insert(graphics, {
+        Type = "Label",
+        Text = "Relay " .. i .. ":",
+        Position = {15, yPos + 10},
+        Size = {60, 20},
+        FontSize = 11,
+        HTextAlign = "Right"
+      })
+      
+      -- Power Toggle
+      layout["power " .. i] = {
+        PrettyName = "Power " .. i,
+        Position = {85, yPos + 5},
+        Size = {80, 30},
+        Legend = "Power " .. i
+      }
+      
+      -- Status LED
+      layout["power_status " .. i] = {
+        PrettyName = "Power " .. i .. " Status",
+        Position = {175, yPos + 10},
+        Size = {20, 20}
+      }
+      
+      -- Pulse Time
+      table.insert(graphics, {
+        Type = "Label",
+        Text = "Pulse:",
+        Position = {205, yPos + 10},
+        Size = {45, 20},
+        FontSize = 10,
+        HTextAlign = "Right"
+      })
+      
+      layout["pulse_time " .. i] = {
+        PrettyName = "Pulse Time " .. i,
+        Position = {255, yPos + 7},
+        Size = {80, 26},
+        FontSize = 10
+      }
+      
+      -- Power On State
+      table.insert(graphics, {
+        Type = "Label",
+        Text = "On State:",
+        Position = {345, yPos + 10},
+        Size = {55, 20},
+        FontSize = 10,
+        HTextAlign = "Right"
+      })
+      
+      layout["power_on_state " .. i] = {
+        PrettyName = "Power On State " .. i,
+        Position = {405, yPos + 7},
+        Size = {75, 26},
+        FontSize = 10
+      }
+    end
+    
+  -- PAGE 3: Sensors
+  elseif CurrentPage == 3 then
+    
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "Temperature Sensors",
+      Fill = {200, 100, 100},
+      CornerRadius = 8,
+      StrokeColor = {0, 0, 0},
+      StrokeWidth = 1,
+      Position = {5, 5},
+      Size = {240, 140}
+    })
+    
+    for i = 1, 4 do
+      local yPos = 25 + ((i-1) * 28)
+      
+      table.insert(graphics, {
+        Type = "Label",
+        Text = "Temp " .. i .. ":",
+        Position = {15, yPos},
+        Size = {60, 20},
+        FontSize = 11,
+        HTextAlign = "Right"
+      })
+      
+      layout["temperature " .. i] = {
+        PrettyName = "Temperature " .. i,
+        Position = {80, yPos - 2},
+        Size = {150, 24},
+        FontSize = 12
+      }
+    end
+    
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "Humidity Sensors",
+      Fill = {100, 150, 200},
+      CornerRadius = 8,
+      StrokeColor = {0, 0, 0},
+      StrokeWidth = 1,
+      Position = {255, 5},
+      Size = {240, 140}
+    })
+    
+    for i = 1, 4 do
+      local yPos = 25 + ((i-1) * 28)
+      
+      table.insert(graphics, {
+        Type = "Label",
+        Text = "Hum " .. i .. ":",
+        Position = {265, yPos},
+        Size = {60, 20},
+        FontSize = 11,
+        HTextAlign = "Right"
+      })
+      
+      layout["humidity " .. i] = {
+        PrettyName = "Humidity " .. i,
+        Position = {330, yPos - 2},
+        Size = {150, 24},
+        FontSize = 12
+      }
+    end
+    
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "Pressure Sensors",
+      Fill = {150, 150, 150},
+      CornerRadius = 8,
+      StrokeColor = {0, 0, 0},
+      StrokeWidth = 1,
+      Position = {5, 155},
+      Size = {240, 85}
+    })
+    
+    for i = 1, 2 do
+      local yPos = 175 + ((i-1) * 28)
+      
+      table.insert(graphics, {
+        Type = "Label",
+        Text = "Press " .. i .. ":",
+        Position = {15, yPos},
+        Size = {60, 20},
+        FontSize = 11,
+        HTextAlign = "Right"
+      })
+      
+      layout["pressure " .. i] = {
+        PrettyName = "Pressure " .. i,
+        Position = {80, yPos - 2},
+        Size = {150, 24},
+        FontSize = 12
+      }
+    end
+    
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "Power Monitoring",
+      Fill = {200, 150, 50},
+      CornerRadius = 8,
+      StrokeColor = {0, 0, 0},
+      StrokeWidth = 1,
+      Position = {255, 155},
+      Size = {240, 140}
+    })
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Voltage:",
+      Position = {265, 175},
+      Size = {60, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["voltage"] = {
+      PrettyName = "Voltage",
+      Position = {330, 173},
+      Size = {150, 24},
+      FontSize = 12
+    }
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Current:",
+      Position = {265, 205},
+      Size = {60, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["current"] = {
+      PrettyName = "Current",
+      Position = {330, 203},
+      Size = {150, 24},
+      FontSize = 12
+    }
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Power:",
+      Position = {265, 235},
+      Size = {60, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["power_watts"] = {
+      PrettyName = "Power (Watts)",
+      Position = {330, 233},
+      Size = {150, 24},
+      FontSize = 12
+    }
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Energy:",
+      Position = {265, 265},
+      Size = {60, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["energy_kwh"] = {
+      PrettyName = "Energy (kWh)",
+      Position = {330, 263},
+      Size = {150, 24},
+      FontSize = 12
+    }
+    
+  -- PAGE 4: Lighting
+  elseif CurrentPage == 4 then
+    
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "Dimmer Control",
+      Fill = {255, 200, 100},
+      CornerRadius = 8,
+      StrokeColor = {0, 0, 0},
+      StrokeWidth = 1,
+      Position = {5, 5},
+      Size = {240, 100}
+    })
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Brightness:",
+      Position = {15, 30},
+      Size = {80, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["dimmer"] = {
+      PrettyName = "Dimmer (0-100%)",
+      Position = {105, 22},
+      Size = {120, 56},
+      FontSize = 14
+    }
+    
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "RGB/RGBW Color Control",
+      Fill = {180, 100, 180},
+      CornerRadius = 8,
+      StrokeColor = {0, 0, 0},
+      StrokeWidth = 1,
+      Position = {255, 5},
+      Size = {240, 200}
+    })
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Red:",
+      Position = {265, 30},
+      Size = {40, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["color_r"] = {
+      PrettyName = "Red (0-255)",
+      Position = {315, 22},
+      Size = {80, 48},
+      FontSize = 12
+    }
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Green:",
+      Position = {265, 80},
+      Size = {40, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["color_g"] = {
+      PrettyName = "Green (0-255)",
+      Position = {315, 72},
+      Size = {80, 48},
+      FontSize = 12
+    }
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Blue:",
+      Position = {265, 130},
+      Size = {40, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["color_b"] = {
+      PrettyName = "Blue (0-255)",
+      Position = {315, 122},
+      Size = {80, 48},
+      FontSize = 12
+    }
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "White:",
+      Position = {400, 80},
+      Size = {40, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["color_w"] = {
+      PrettyName = "White (0-255)",
+      Position = {410, 22},
+      Size = {70, 48},
+      FontSize = 12
+    }
+    
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "Color Temperature",
+      Fill = {255, 180, 120},
+      CornerRadius = 8,
+      StrokeColor = {0, 0, 0},
+      StrokeWidth = 1,
+      Position = {5, 115},
+      Size = {240, 90}
+    })
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "CT (mireds):",
+      Position = {15, 140},
+      Size = {80, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["color_temp"] = {
+      PrettyName = "Color Temp (153-500 mireds)",
+      Position = {105, 132},
+      Size = {120, 56},
+      FontSize = 12
+    }
+    
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "HSB Control",
+      Fill = {120, 200, 180},
+      CornerRadius = 8,
+      StrokeColor = {0, 0, 0},
+      StrokeWidth = 1,
+      Position = {5, 215},
+      Size = {490, 100}
+    })
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Hue (0-360):",
+      Position = {15, 240},
+      Size = {80, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["hsb_h"] = {
+      PrettyName = "Hue",
+      Position = {105, 232},
+      Size = {95, 56},
+      FontSize = 12
+    }
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Sat (0-100):",
+      Position = {215, 240},
+      Size = {80, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["hsb_s"] = {
+      PrettyName = "Saturation",
+      Position = {305, 232},
+      Size = {85, 56},
+      FontSize = 12
+    }
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Bright (0-100):",
+      Position = {15, 290},
+      Size = {80, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["hsb_b"] = {
+      PrettyName = "Brightness",
+      Position = {105, 282},
+      Size = {95, 56},
+      FontSize = 12
+    }
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Scheme:",
+      Position = {215, 290},
+      Size = {80, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["scheme"] = {
+      PrettyName = "Light Scheme",
+      Position = {305, 287},
+      Size = {85, 26},
+      FontSize = 11
+    }
+    
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "Effects",
+      Fill = {150, 150, 200},
+      CornerRadius = 8,
+      StrokeColor = {0, 0, 0},
+      StrokeWidth = 1,
+      Position = {255, 215},
+      Size = {240, 100}
+    })
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Fade Speed:",
+      Position = {265, 250},
+      Size = {80, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["fade_speed"] = {
+      PrettyName = "Fade Speed (0-20)",
+      Position = {355, 242},
+      Size = {120, 56},
+      FontSize = 12
+    }
+    
+  -- PAGE 5: GPIO & Advanced
+  elseif CurrentPage == 5 then
+    
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "GPIO Outputs (1-8)",
+      Fill = {120, 120, 180},
+      CornerRadius = 8,
+      StrokeColor = {0, 0, 0},
+      StrokeWidth = 1,
+      Position = {5, 5},
+      Size = {240, 230}
+    })
+    
+    for i = 1, 8 do
+      local yPos = 25 + ((i-1) * 26)
+      
+      table.insert(graphics, {
+        Type = "Label",
+        Text = "GPIO " .. i .. ":",
+        Position = {15, yPos},
+        Size = {60, 20},
+        FontSize = 10,
+        HTextAlign = "Right"
+      })
+      
+      layout["gpio_out " .. i] = {
+        PrettyName = "GPIO Output " .. i,
+        Position = {80, yPos - 2},
+        Size = {70, 24},
+        Legend = "Out " .. i
+      }
+      
+      layout["gpio_in " .. i] = {
+        PrettyName = "GPIO Input " .. i,
+        Position = {160, yPos},
+        Size = {20, 20}
+      }
+      
+      table.insert(graphics, {
+        Type = "Label",
+        Text = "In",
+        Position = {185, yPos},
+        Size = {25, 20},
+        FontSize = 9
+      })
+    end
+    
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "PWM Outputs (1-4)",
+      Fill = {180, 150, 100},
+      CornerRadius = 8,
+      StrokeColor = {0, 0, 0},
+      StrokeWidth = 1,
+      Position = {255, 5},
+      Size = {240, 120}
+    })
+    
+    for i = 1, 4 do
+      local xPos = 265 + ((i-1) % 2) * 110
+      local yPos = 25 + math.floor((i-1) / 2) * 55
+      
+      table.insert(graphics, {
+        Type = "Label",
+        Text = "PWM " .. i .. ":",
+        Position = {xPos, yPos + 5},
+        Size = {45, 20},
+        FontSize = 10,
+        HTextAlign = "Right"
+      })
+      
+      layout["pwm " .. i] = {
+        PrettyName = "PWM " .. i .. " (0-1023)",
+        Position = {xPos, yPos + 22},
+        Size = {90, 42},
+        FontSize = 11
+      }
+    end
+    
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "Analog Inputs (1-4)",
+      Fill = {100, 180, 150},
+      CornerRadius = 8,
+      StrokeColor = {0, 0, 0},
+      StrokeWidth = 1,
+      Position = {255, 135},
+      Size = {240, 100}
+    })
+    
+    for i = 1, 4 do
+      local yPos = 155 + ((i-1) % 2) * 28
+      local xPos = 265 + math.floor((i-1) / 2) * 110
+      
+      table.insert(graphics, {
+        Type = "Label",
+        Text = "ADC" .. i .. ":",
+        Position = {xPos, yPos},
+        Size = {40, 20},
+        FontSize = 10,
+        HTextAlign = "Right"
+      })
+      
+      layout["analog_in " .. i] = {
+        PrettyName = "Analog Input " .. i,
+        Position = {xPos + 45, yPos - 2},
+        Size = {55, 24},
+        FontSize = 10
+      }
+    end
+    
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "Custom Command",
+      Fill = {200, 120, 120},
+      CornerRadius = 8,
+      StrokeColor = {0, 0, 0},
+      StrokeWidth = 1,
+      Position = {5, 245},
+      Size = {490, 120}
+    })
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Command:",
+      Position = {15, 270},
+      Size = {70, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["custom_command"] = {
+      PrettyName = "Custom Command",
+      Position = {95, 267},
+      Size = {300, 26},
+      FontSize = 11
+    }
+    
+    layout["send_command"] = {
+      PrettyName = "Send Command",
+      Position = {405, 265},
+      Size = {80, 30},
+      Legend = "Send"
+    }
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Response:",
+      Position = {15, 310},
+      Size = {70, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["command_response"] = {
+      PrettyName = "Command Response",
+      Position = {95, 305},
+      Size = {390, 50},
+      FontSize = 10
+    }
+    
+  -- PAGE 6: Status & Info
+  elseif CurrentPage == 6 then
+    
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "Device Information",
+      Fill = {150, 150, 150},
+      CornerRadius = 8,
+      StrokeColor = {0, 0, 0},
+      StrokeWidth = 1,
+      Position = {5, 5},
+      Size = {490, 230}
+    })
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Device Name:",
+      Position = {15, 30},
+      Size = {100, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["device_name"] = {
+      PrettyName = "Device Name",
+      Position = {125, 27},
+      Size = {355, 26},
+      FontSize = 12
+    }
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "IP Address:",
+      Position = {15, 65},
+      Size = {100, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["ip_address"] = {
+      PrettyName = "IP Address",
+      Position = {125, 62},
+      Size = {170, 26},
+      FontSize = 12
+    }
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "WiFi RSSI:",
+      Position = {310, 65},
+      Size = {70, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["wifi_rssi"] = {
+      PrettyName = "WiFi Signal Strength",
+      Position = {390, 62},
+      Size = {90, 26},
+      FontSize = 12
+    }
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Firmware:",
+      Position = {15, 100},
+      Size = {100, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["firmware_version"] = {
+      PrettyName = "Firmware Version",
+      Position = {125, 97},
+      Size = {355, 26},
+      FontSize = 12
+    }
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Uptime:",
+      Position = {15, 135},
+      Size = {100, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["uptime"] = {
+      PrettyName = "Uptime",
+      Position = {125, 132},
+      Size = {170, 26},
+      FontSize = 12
+    }
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Heap Memory:",
+      Position = {310, 135},
+      Size = {70, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["heap_memory"] = {
+      PrettyName = "Free Heap Memory",
+      Position = {390, 132},
+      Size = {90, 26},
+      FontSize = 12
+    }
+    
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "Friendly Names",
+      Fill = {120, 180, 150},
+      CornerRadius = 8,
+      StrokeColor = {0, 0, 0},
+      StrokeWidth = 1,
+      Position = {5, 175},
+      Size = {475, 56}
+    })
+    
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Friendly Name:",
+      Position = {15, 200},
+      Size = {100, 20},
+      FontSize = 11,
+      HTextAlign = "Right"
+    })
+    
+    layout["friendly_name 1"] = {
+      PrettyName = "Friendly Name 1",
+      Position = {125, 197},
+      Size = {345, 26},
+      FontSize = 11
+    }
+    
+  end
+  
+  return layout, graphics
+end
+
+
+-- Runtime Code
+if Controls then
+  
+  -- State Variables
+  local active_socket = nil
+  local mqtt_socket = nil
+  local ws_socket = nil
+  local http_socket = nil
+  local current_protocol = "HTTP"
+  local is_connected = false
+  local packet_id = 1
+  local keep_alive_timer = nil
+  local poll_timer = nil
+  local command_queue = {}
+  local subscribed_topics = {}
+  local pending_qos2 = {}
+  local device_state = {}
+  
+  -- JSON Library
+  local rapidjson = require("rapidjson")
+  
+  -- Debug Print Function
+  local function DebugPrint(category, message)
+    local debug_mode = Properties["Debug Print"].Value
+    local should_print = false
+    
+    if debug_mode == "All" then
+      should_print = true
+    elseif debug_mode == "Tx/Rx" and (category == "Tx" or category == "Rx") then
+      should_print = true
+    elseif debug_mode == "Tx" and category == "Tx" then
+      should_print = true
+    elseif debug_mode == "Rx" and category == "Rx" then
+      should_print = true
+    elseif debug_mode == "Function Calls" and category == "Function" then
+      should_print = true
+    end
+    
+    if should_print then
+      print(string.format("[Tasmota %s] %s", category, message))
+    end
+  end
+  
+  -- Update Status
+  local function UpdateStatus(state, message)
+    Controls.connection_state.String = message
+    DebugPrint("Status", string.format("%s: %s", state, message))
+    
+    if state == "Connected" then
+      Controls.connection_status.Value = 0 -- OK
+      Controls.connect.Boolean = true
+      is_connected = true
+    elseif state == "Disconnected" then
+      Controls.connection_status.Value = 2 -- Compromised
+      Controls.connect.Boolean = false
+      is_connected = false
+    elseif state == "Error" then
+      Controls.connection_status.Value = 5 -- Fault
+      Controls.connect.Boolean = false
+      is_connected = false
+    else
+      Controls.connection_status.Value = 1 -- Initializing
+    end
+  end
+  
+  -- JSON Parsing Helper
+  local function ParseJSON(json_string)
+    if not Properties["Parse JSON"].Value then
+      return json_string
+    end
+    
+    local success, result = pcall(function()
+      return rapidjson.decode(json_string)
+    end)
+    
+    if success and type(result) == "table" then
+      return result
+    else
+      return json_string
+    end
+  end
+  
+  -- JSON Stringify Helper
+  local function StringifyJSON(obj)
+    local success, result = pcall(function()
+      return rapidjson.encode(obj)
+    end)
+    
+    if success then
+      return result
+    else
+      return tostring(obj)
+    end
+  end
+  
+  -- ========================================
+  -- HTTP/REST API Implementation
+  -- ========================================
+  
+  local function EncodeURL(str)
+    if str then
+      str = string.gsub(str, "\n", "\r\n")
+      str = string.gsub(str, "([^%w %-%_%.%~])",
+        function(c) return string.format("%%%02X", string.byte(c)) end)
+      str = string.gsub(str, " ", "+")
+    end
+    return str
+  end
+  
+  local function HTTPRequest(method, path, body, callback)
+    DebugPrint("Function", string.format("HTTPRequest: %s %s", method, path))
+    
+    if not http_socket or not http_socket.IsConnected then
+      DebugPrint("Tx", "Creating HTTP connection")
+      http_socket = TcpSocket.New()
+      http_socket.ReadTimeout = Properties["Connection Timeout"].Value
+      http_socket.WriteTimeout = Properties["Connection Timeout"].Value
+      
+      http_socket.Connected = function(sock)
+        DebugPrint("Function", "HTTP Connected callback")
+        
+        -- Build HTTP request
+        local request = string.format("%s %s HTTP/1.1\r\n", method, path)
+        request = request .. string.format("Host: %s\r\n", Controls.host.String)
+        
+        -- Add authentication if provided
+        if Controls.username.String ~= "" and Controls.password.String ~= "" then
+          local auth = Controls.username.String .. ":" .. Controls.password.String
+          local base64_auth = Crypto.Base64Encode(auth)
+          request = request .. string.format("Authorization: Basic %s\r\n", base64_auth)
+        end
+        
+        if body then
+          request = request .. string.format("Content-Length: %d\r\n", #body)
+          request = request .. "Content-Type: application/x-www-form-urlencoded\r\n"
+        end
+        
+        request = request .. "Connection: close\r\n\r\n"
+        
+        if body then
+          request = request .. body
+        end
+        
+        DebugPrint("Tx", "Sending HTTP request:\n" .. request)
+        sock:Write(request)
+      end
+      
+      http_socket.Reconnect = function(sock)
+        DebugPrint("Function", "HTTP Reconnect callback")
+        UpdateStatus("Error", "HTTP connection lost, reconnecting...")
+      end
+      
+      http_socket.Data = function(sock)
+        local data = sock:ReadLine(TcpSocket.EOL.Any)
+        while data ~= nil do
+          DebugPrint("Rx", "HTTP Data: " .. data)
+          
+          -- Find empty line (end of headers)
+          if data == "" or data == "\r" then
+            -- Next read should be the body
+            local body_data = sock:Read(sock.BufferLength)
+            if body_data and #body_data > 0 then
+              DebugPrint("Rx", "HTTP Body: " .. body_data)
+              if callback then
+                callback(body_data)
+              end
+            end
+            break
+          end
+          
+          data = sock:ReadLine(TcpSocket.EOL.Any)
+        end
+      end
+      
+      http_socket.Closed = function(sock)
+        DebugPrint("Function", "HTTP Closed callback")
+      end
+      
+      http_socket.Error = function(sock, err)
+        DebugPrint("Function", string.format("HTTP Error: %s", err))
+        UpdateStatus("Error", "HTTP Error: " .. err)
+      end
+      
+      http_socket.Timeout = function(sock)
+        DebugPrint("Function", "HTTP Timeout")
+        UpdateStatus("Error", "HTTP request timeout")
+      end
+      
+      local port = tonumber(Controls.port.String) or 80
+      DebugPrint("Tx", string.format("Connecting to %s:%d", Controls.host.String, port))
+      http_socket:Connect(Controls.host.String, port)
+    else
+      -- Reuse existing connection (not implemented in this simple version)
+      DebugPrint("Tx", "Reusing HTTP connection")
+    end
+  end
+  
+  local function SendTasmotaCommand(command, callback)
+    DebugPrint("Function", "SendTasmotaCommand: " .. command)
+    
+    if current_protocol == "HTTP" then
+      local path = "/cm?cmnd=" .. EncodeURL(command)
+      HTTPRequest("GET", path, nil, callback)
+      
+    elseif current_protocol == "MQTT" then
+      local topic = "cmnd/" .. Controls.mqtt_topic.String .. "/" .. command
+      PublishMQTT(topic, "", 0, false)
+      
+    elseif current_protocol == "WebSocket" then
+      SendWebSocketMessage(command)
+    end
+  end
+  
+  -- ========================================
+  -- MQTT Implementation
+  -- ========================================
+  
+  local function EncodeLength(length)
+    local encoded = ""
+    repeat
+      local byte = length % 128
+      length = math.floor(length / 128)
+      if length > 0 then
+        byte = byte + 128
+      end
+      encoded = encoded .. string.char(byte)
+    until length == 0
+    return encoded
+  end
+  
+  local function DecodeLength(data, start_pos)
+    local multiplier = 1
+    local value = 0
+    local pos = start_pos
+    local byte
+    
+    repeat
+      if pos > #data then
+        return nil, pos
+      end
+      byte = string.byte(data, pos)
+      value = value + (byte % 128) * multiplier
+      multiplier = multiplier * 128
+      pos = pos + 1
+    until (byte < 128)
+    
+    return value, pos
+  end
+  
+  local function EncodeString(str)
+    local len = string.len(str)
+    return string.char(math.floor(len / 256), len % 256) .. str
+  end
+  
+  local function BytesToHex(str)
+    local hex = ""
+    for i = 1, #str do
+      hex = hex .. string.format("%02X ", string.byte(str, i))
+    end
+    return hex
+  end
+  
+  local function SendMQTTConnect()
+    DebugPrint("Function", "SendMQTTConnect")
+    
+    local client_id = "qsys_tasmota_" .. tostring(math.random(10000, 99999))
+    local variable_header = EncodeString("MQTT") .. string.char(4) -- Protocol name and level
+    
+    local connect_flags = 0x02 -- Clean session
+    local payload = EncodeString(client_id)
+    
+    -- Add username/password if provided
+    if Controls.username.String ~= "" then
+      connect_flags = connect_flags + 0x80 -- Username flag
+      payload = payload .. EncodeString(Controls.username.String)
+    end
+    if Controls.password.String ~= "" then
+      connect_flags = connect_flags + 0x40 -- Password flag
+      payload = payload .. EncodeString(Controls.password.String)
+    end
+    
+    variable_header = variable_header .. string.char(connect_flags)
+    variable_header = variable_header .. string.char(0, 60) -- Keep alive 60 seconds
+    
+    local remaining_length = string.len(variable_header) + string.len(payload)
+    local packet = string.char(0x10) .. EncodeLength(remaining_length) .. variable_header .. payload
+    
+    DebugPrint("Tx", "MQTT CONNECT: " .. BytesToHex(packet))
+    mqtt_socket:Write(packet)
+  end
+  
+  local function SendMQTTPingreq()
+    DebugPrint("Tx", "MQTT PINGREQ")
+    mqtt_socket:Write(string.char(0xC0, 0x00))
+  end
+  
+  local function SubscribeMQTT(topic, qos)
+    DebugPrint("Function", string.format("SubscribeMQTT: %s (QoS %d)", topic, qos))
+    
+    if not mqtt_socket or not mqtt_socket.IsConnected or not is_connected then
+      DebugPrint("Function", "Cannot subscribe - not connected")
+      return
+    end
+    
+    local variable_header = string.char(math.floor(packet_id / 256), packet_id % 256)
+    local payload = EncodeString(topic) .. string.char(qos)
+    
+    local remaining_length = string.len(variable_header) + string.len(payload)
+    local packet = string.char(0x82) .. EncodeLength(remaining_length) .. variable_header .. payload
+    
+    DebugPrint("Tx", string.format("MQTT SUBSCRIBE [%d]: %s", packet_id, BytesToHex(packet)))
+    mqtt_socket:Write(packet)
+    
+    subscribed_topics[topic] = true
+    
+    packet_id = packet_id + 1
+    if packet_id > 65535 then packet_id = 1 end
+  end
+  
+  function PublishMQTT(topic, payload, qos, retain)
+    DebugPrint("Function", string.format("PublishMQTT: %s = %s", topic, payload))
+    
+    if not mqtt_socket or not mqtt_socket.IsConnected or not is_connected then
+      DebugPrint("Function", "Cannot publish - not connected")
+      return
+    end
+    
+    local fixed_header_byte = 0x30 -- PUBLISH
+    
+    if qos == 1 then
+      fixed_header_byte = fixed_header_byte + 0x02
+    elseif qos == 2 then
+      fixed_header_byte = fixed_header_byte + 0x04
+    end
+    
+    if retain then
+      fixed_header_byte = fixed_header_byte + 0x01
+    end
+    
+    local variable_header = EncodeString(topic)
+    
+    if qos > 0 then
+      variable_header = variable_header .. string.char(math.floor(packet_id / 256), packet_id % 256)
+      packet_id = packet_id + 1
+      if packet_id > 65535 then packet_id = 1 end
+    end
+    
+    local remaining_length = string.len(variable_header) + string.len(payload)
+    local packet = string.char(fixed_header_byte) .. EncodeLength(remaining_length) .. variable_header .. payload
+    
+    DebugPrint("Tx", string.format("MQTT PUBLISH: %s", BytesToHex(packet)))
+    mqtt_socket:Write(packet)
+  end
+  
+  local function HandleMQTTPacket(packet_type, flags, data, remaining_length)
+    DebugPrint("Rx", string.format("MQTT Packet Type: 0x%02X, Flags: 0x%02X, Length: %d", packet_type, flags, remaining_length))
+    
+    if packet_type == 2 then -- CONNACK
+      if #data >= 2 then
+        local return_code = string.byte(data, 2)
+        if return_code == 0 then
+          DebugPrint("Rx", "MQTT CONNACK: Connection accepted")
+          UpdateStatus("Connected", "MQTT connected")
+          is_connected = true
+          
+          -- Subscribe to Tasmota topics
+          local base_topic = Controls.mqtt_topic.String
+          if base_topic ~= "" then
+            SubscribeMQTT("stat/" .. base_topic .. "/#", 0)
+            SubscribeMQTT("tele/" .. base_topic .. "/#", 0)
+          end
+          
+          -- Start keep-alive timer
+          if keep_alive_timer then
+            keep_alive_timer:Stop()
+          end
+          keep_alive_timer = Timer.New()
+          keep_alive_timer.EventHandler = function()
+            SendMQTTPingreq()
+          end
+          keep_alive_timer:Start(30)
+        else
+          DebugPrint("Rx", string.format("MQTT CONNACK: Connection refused (code %d)", return_code))
+          UpdateStatus("Error", "MQTT connection refused")
+        end
+      end
+      
+    elseif packet_type == 3 then -- PUBLISH
+      local qos = math.floor((flags % 8) / 2)
+      local retain = (flags % 2) == 1
+      
+      -- Parse topic length
+      local topic_len = string.byte(data, 1) * 256 + string.byte(data, 2)
+      local topic = string.sub(data, 3, 2 + topic_len)
+      
+      local payload_start = 3 + topic_len
+      
+      -- Skip packet ID for QoS > 0
+      if qos > 0 then
+        payload_start = payload_start + 2
+      end
+      
+      local payload = string.sub(data, payload_start)
+      
+      DebugPrint("Rx", string.format("MQTT PUBLISH: Topic=%s, Payload=%s, QoS=%d, Retain=%s", 
+        topic, payload, qos, tostring(retain)))
+      
+      -- Parse Tasmota responses
+      ParseTasmotaResponse(topic, payload)
+      
+    elseif packet_type == 9 then -- SUBACK
+      DebugPrint("Rx", "MQTT SUBACK received")
+      
+    elseif packet_type == 13 then -- PINGRESP
+      DebugPrint("Rx", "MQTT PINGRESP received")
+    end
+  end
+  
+  -- ========================================
+  -- WebSocket Implementation
+  -- ========================================
+  
+  local function CreateWebSocketHandshake()
+    local key = Crypto.Base64Encode(tostring(math.random()) .. tostring(os.time()))
+    local handshake = string.format("GET /ws HTTP/1.1\r\n")
+    handshake = handshake .. string.format("Host: %s\r\n", Controls.host.String)
+    handshake = handshake .. "Upgrade: websocket\r\n"
+    handshake = handshake .. "Connection: Upgrade\r\n"
+    handshake = handshake .. string.format("Sec-WebSocket-Key: %s\r\n", key)
+    handshake = handshake .. "Sec-WebSocket-Version: 13\r\n"
+    handshake = handshake .. "\r\n"
+    return handshake
+  end
+  
+  local function SendWebSocketMessage(message)
+    DebugPrint("Function", "SendWebSocketMessage: " .. message)
+    
+    if not ws_socket or not ws_socket.IsConnected then
+      DebugPrint("Function", "WebSocket not connected")
+      return
+    end
+    
+    -- Build WebSocket frame (text frame, FIN=1, opcode=0x1)
+    local frame = string.char(0x81) -- FIN + Text frame
+    local len = #message
+    
+    if len < 126 then
+      frame = frame .. string.char(0x80 + len) -- Masked + length
+    elseif len < 65536 then
+      frame = frame .. string.char(0xFE) -- Masked + extended length (16-bit)
+      frame = frame .. string.char(math.floor(len / 256), len % 256)
+    else
+      -- Length > 65535 not supported in this implementation
+      DebugPrint("Function", "Message too long for WebSocket")
+      return
+    end
+    
+    -- Add masking key (4 random bytes)
+    local mask = {}
+    for i = 1, 4 do
+      mask[i] = math.random(0, 255)
+      frame = frame .. string.char(mask[i])
+    end
+    
+    -- Apply mask to payload
+    local masked_payload = ""
+    for i = 1, len do
+      local byte = string.byte(message, i)
+      local masked_byte = byte ~ mask[((i - 1) % 4) + 1]
+      masked_payload = masked_payload .. string.char(masked_byte)
+    end
+    
+    frame = frame .. masked_payload
+    
+    DebugPrint("Tx", "WebSocket frame: " .. BytesToHex(frame:sub(1, math.min(50, #frame))))
+    ws_socket:Write(frame)
+  end
+  
+  -- ========================================
+  -- Tasmota Response Parser
+  -- ========================================
+  
+  local function ParseTasmotaResponse(topic, payload)
+    DebugPrint("Function", "ParseTasmotaResponse")
+    
+    local data = ParseJSON(payload)
+    
+    if type(data) ~= "table" then
+      Controls.command_response.String = payload
+      return
+    end
+    
+    -- Parse power states
+    if data.POWER ~= nil then
+      Controls["power 1"].Boolean = (data.POWER == "ON")
+      Controls["power_status 1"].Boolean = (data.POWER == "ON")
+    end
+    
+    for i = 1, 8 do
+      local key = "POWER" .. i
+      if data[key] ~= nil then
+        Controls["power " .. i].Boolean = (data[key] == "ON")
+        Controls["power_status " .. i].Boolean = (data[key] == "ON")
+      end
+    end
+    
+    -- Parse sensor data
+    if data.StatusSNS ~= nil then
+      local sensors = data.StatusSNS
+      
+      -- Temperature sensors
+      if sensors.DS18B20 then
+        if sensors.DS18B20.Temperature then
+          Controls["temperature 1"].String = string.format("%.1f °C", sensors.DS18B20.Temperature)
+        end
+      end
+      
+      if sensors.DHT11 or sensors.DHT22 or sensors.AM2301 then
+        local dht = sensors.DHT11 or sensors.DHT22 or sensors.AM2301
+        if dht.Temperature then
+          Controls["temperature 1"].String = string.format("%.1f °C", dht.Temperature)
+        end
+        if dht.Humidity then
+          Controls["humidity 1"].String = string.format("%.1f %%", dht.Humidity)
+        end
+      end
+      
+      if sensors.BME280 or sensors.BMP280 then
+        local bme = sensors.BME280 or sensors.BMP280
+        if bme.Temperature then
+          Controls["temperature 1"].String = string.format("%.1f °C", bme.Temperature)
+        end
+        if bme.Humidity then
+          Controls["humidity 1"].String = string.format("%.1f %%", bme.Humidity)
+        end
+        if bme.Pressure then
+          Controls["pressure 1"].String = string.format("%.1f hPa", bme.Pressure)
+        end
+      end
+      
+      -- Power monitoring
+      if sensors.ENERGY then
+        if sensors.ENERGY.Voltage then
+          Controls.voltage.String = string.format("%.1f V", sensors.ENERGY.Voltage)
+        end
+        if sensors.ENERGY.Current then
+          Controls.current.String = string.format("%.3f A", sensors.ENERGY.Current)
+        end
+        if sensors.ENERGY.Power then
+          Controls.power_watts.String = string.format("%.1f W", sensors.ENERGY.Power)
+        end
+        if sensors.ENERGY.Total then
+          Controls.energy_kwh.String = string.format("%.3f kWh", sensors.ENERGY.Total)
+        end
+      end
+    end
+    
+    -- Parse status information
+    if data.StatusNET then
+      if data.StatusNET.IPAddress then
+        Controls.ip_address.String = data.StatusNET.IPAddress
+      end
+    end
+    
+    if data.StatusSTS then
+      if data.StatusSTS.Wifi then
+        if data.StatusSTS.Wifi.RSSI then
+          Controls.wifi_rssi.String = string.format("%d dBm", data.StatusSTS.Wifi.RSSI)
+        end
+      end
+      if data.StatusSTS.Uptime then
+        Controls.uptime.String = data.StatusSTS.Uptime
+      end
+    end
+    
+    if data.Status then
+      if data.Status.FriendlyName then
+        if type(data.Status.FriendlyName) == "table" then
+          for i, name in ipairs(data.Status.FriendlyName) do
+            if i <= 8 then
+              Controls["friendly_name " .. i].String = name
+            end
+          end
+        end
+      end
+      if data.Status.DeviceName then
+        Controls.device_name.String = data.Status.DeviceName
+      end
+    end
+    
+    if data.StatusFWR then
+      if data.StatusFWR.Version then
+        Controls.firmware_version.String = data.StatusFWR.Version
+      end
+    end
+    
+    if data.StatusMEM then
+      if data.StatusMEM.Heap then
+        Controls.heap_memory.String = string.format("%d kB", data.StatusMEM.Heap)
+      end
+    end
+    
+    -- Dimmer
+    if data.Dimmer ~= nil then
+      Controls.dimmer.Value = data.Dimmer
+    end
+    
+    -- Color
+    if data.Color then
+      local color = data.Color
+      -- Parse hex color (e.g., "FF00FF")
+      if type(color) == "string" and #color >= 6 then
+        local r = tonumber(color:sub(1, 2), 16)
+        local g = tonumber(color:sub(3, 4), 16)
+        local b = tonumber(color:sub(5, 6), 16)
+        if r then Controls.color_r.Value = r end
+        if g then Controls.color_g.Value = g end
+        if b then Controls.color_b.Value = b end
+      end
+    end
+    
+    -- Store full response
+    Controls.command_response.String = StringifyJSON(data)
+  end
+  
+  -- ========================================
+  -- Connection Management
+  -- ========================================
+  
+  local function ConnectHTTP()
+    DebugPrint("Function", "ConnectHTTP")
+    current_protocol = "HTTP"
+    Controls.protocol.String = "HTTP"
+    UpdateStatus("Connected", "HTTP mode active")
+    is_connected = true
+    
+    -- Start polling timer
+    if poll_timer then
+      poll_timer:Stop()
+    end
+    poll_timer = Timer.New()
+    poll_timer.EventHandler = function()
+      -- Poll for status
+      SendTasmotaCommand("Status 0", function(response)
+        ParseTasmotaResponse("status", response)
+      end)
+    end
+    local interval = Controls.poll_interval.Value or 5
+    poll_timer:Start(interval)
+  end
+  
+  local function ConnectMQTT()
+    DebugPrint("Function", "ConnectMQTT")
+    current_protocol = "MQTT"
+    Controls.protocol.String = "MQTT"
+    
+    if mqtt_socket then
+      mqtt_socket:Disconnect()
+    end
+    
+    mqtt_socket = TcpSocket.New()
+    mqtt_socket.ReadTimeout = 0
+    mqtt_socket.WriteTimeout = Properties["Connection Timeout"].Value
+    
+    mqtt_socket.Connected = function(sock)
+      DebugPrint("Function", "MQTT socket connected")
+      UpdateStatus("Connecting", "MQTT handshake...")
+      SendMQTTConnect()
+    end
+    
+    mqtt_socket.Reconnect = function(sock)
+      DebugPrint("Function", "MQTT reconnect")
+      UpdateStatus("Connecting", "MQTT reconnecting...")
+    end
+    
+    mqtt_socket.Data = function(sock)
+      local data = sock:Read(sock.BufferLength)
+      if not data or #data == 0 then return end
+      
+      DebugPrint("Rx", "MQTT Data: " .. BytesToHex(data))
+      
+      local pos = 1
+      while pos <= #data do
+        -- Parse fixed header
+        local header_byte = string.byte(data, pos)
+        local packet_type = math.floor(header_byte / 16)
+        local flags = header_byte % 16
+        pos = pos + 1
+        
+        -- Parse remaining length
+        local remaining_length, new_pos = DecodeLength(data, pos)
+        if not remaining_length then break end
+        pos = new_pos
+        
+        -- Extract packet data
+        if pos + remaining_length - 1 <= #data then
+          local packet_data = string.sub(data, pos, pos + remaining_length - 1)
+          pos = pos + remaining_length
+          
+          HandleMQTTPacket(packet_type, flags, packet_data, remaining_length)
+        else
+          break
+        end
+      end
+    end
+    
+    mqtt_socket.Closed = function(sock)
+      DebugPrint("Function", "MQTT socket closed")
+      UpdateStatus("Disconnected", "MQTT connection closed")
+      is_connected = false
+    end
+    
+    mqtt_socket.Error = function(sock, err)
+      DebugPrint("Function", "MQTT error: " .. err)
+      UpdateStatus("Error", "MQTT error: " .. err)
+    end
+    
+    mqtt_socket.Timeout = function(sock)
+      DebugPrint("Function", "MQTT timeout")
+      UpdateStatus("Error", "MQTT connection timeout")
+    end
+    
+    local port = tonumber(Controls.port.String) or 1883
+    DebugPrint("Tx", string.format("Connecting to MQTT broker %s:%d", Controls.host.String, port))
+    mqtt_socket:Connect(Controls.host.String, port)
+  end
+  
+  local function ConnectWebSocket()
+    DebugPrint("Function", "ConnectWebSocket")
+    current_protocol = "WebSocket"
+    Controls.protocol.String = "WebSocket"
+    
+    if ws_socket then
+      ws_socket:Disconnect()
+    end
+    
+    ws_socket = TcpSocket.New()
+    ws_socket.ReadTimeout = 0
+    ws_socket.WriteTimeout = Properties["Connection Timeout"].Value
+    
+    ws_socket.Connected = function(sock)
+      DebugPrint("Function", "WebSocket connected")
+      UpdateStatus("Connecting", "WebSocket handshake...")
+      
+      local handshake = CreateWebSocketHandshake()
+      DebugPrint("Tx", "WebSocket handshake:\n" .. handshake)
+      sock:Write(handshake)
+    end
+    
+    ws_socket.Reconnect = function(sock)
+      DebugPrint("Function", "WebSocket reconnect")
+      UpdateStatus("Connecting", "WebSocket reconnecting...")
+    end
+    
+    ws_socket.Data = function(sock)
+      local data = sock:Read(sock.BufferLength)
+      if not data or #data == 0 then return end
+      
+      DebugPrint("Rx", "WebSocket data: " .. data)
+      
+      -- Check for HTTP upgrade response
+      if data:match("HTTP/1.1 101") then
+        DebugPrint("Rx", "WebSocket upgrade successful")
+        UpdateStatus("Connected", "WebSocket connected")
+        is_connected = true
+      else
+        -- Parse WebSocket frames (simplified)
+        ParseTasmotaResponse("websocket", data)
+      end
+    end
+    
+    ws_socket.Closed = function(sock)
+      DebugPrint("Function", "WebSocket closed")
+      UpdateStatus("Disconnected", "WebSocket connection closed")
+      is_connected = false
+    end
+    
+    ws_socket.Error = function(sock, err)
+      DebugPrint("Function", "WebSocket error: " .. err)
+      UpdateStatus("Error", "WebSocket error: " .. err)
+    end
+    
+    ws_socket.Timeout = function(sock)
+      DebugPrint("Function", "WebSocket timeout")
+      UpdateStatus("Error", "WebSocket connection timeout")
+    end
+    
+    local port = tonumber(Controls.port.String) or 80
+    DebugPrint("Tx", string.format("Connecting to WebSocket %s:%d", Controls.host.String, port))
+    ws_socket:Connect(Controls.host.String, port)
+  end
+  
+  local function Disconnect()
+    DebugPrint("Function", "Disconnect")
+    
+    if poll_timer then
+      poll_timer:Stop()
+      poll_timer = nil
+    end
+    
+    if keep_alive_timer then
+      keep_alive_timer:Stop()
+      keep_alive_timer = nil
+    end
+    
+    if http_socket and http_socket.IsConnected then
+      http_socket:Disconnect()
+    end
+    
+    if mqtt_socket and mqtt_socket.IsConnected then
+      mqtt_socket:Disconnect()
+    end
+    
+    if ws_socket and ws_socket.IsConnected then
+      ws_socket:Disconnect()
+    end
+    
+    is_connected = false
+    UpdateStatus("Disconnected", "Disconnected")
+  end
+  
+  -- ========================================
+  -- Control Event Handlers
+  -- ========================================
+  
+  -- Connection Controls
+  Controls.protocol_http.EventHandler = function(ctl)
+    if ctl.Boolean then
+      if is_connected then
+        Disconnect()
+      end
+      ConnectHTTP()
+    end
+  end
+  
+  Controls.protocol_mqtt.EventHandler = function(ctl)
+    if ctl.Boolean then
+      if is_connected then
+        Disconnect()
+      end
+      ConnectMQTT()
+    end
+  end
+  
+  Controls.protocol_websocket.EventHandler = function(ctl)
+    if ctl.Boolean then
+      if is_connected then
+        Disconnect()
+      end
+      ConnectWebSocket()
+    end
+  end
+  
+  Controls.connect.EventHandler = function(ctl)
+    if ctl.Boolean then
+      local protocol = Properties["Default Protocol"].Value
+      if protocol == "HTTP" then
+        ConnectHTTP()
+      elseif protocol == "MQTT" then
+        ConnectMQTT()
+      elseif protocol == "WebSocket" then
+        ConnectWebSocket()
+      end
+    else
+      Disconnect()
+    end
+  end
+  
+  Controls.poll_interval.EventHandler = function(ctl)
+    if poll_timer and poll_timer.IsRunning then
+      poll_timer:Stop()
+      poll_timer:Start(ctl.Value)
+    end
+  end
+  
+  -- Power Controls
+  for i = 1, 8 do
+    Controls["power " .. i].EventHandler = function(ctl)
+      local cmd = string.format("Power%d %s", i, ctl.Boolean and "ON" or "OFF")
+      SendTasmotaCommand(cmd, function(response)
+        ParseTasmotaResponse("power", response)
+      end)
+    end
+    
+    Controls["pulse_time " .. i].EventHandler = function(ctl)
+      if ctl.String ~= "" then
+        local cmd = string.format("PulseTime%d %s", i, ctl.String)
+        SendTasmotaCommand(cmd, function(response)
+          ParseTasmotaResponse("pulsetime", response)
+        end)
+      end
+    end
+    
+    Controls["power_on_state " .. i].EventHandler = function(ctl)
+      if ctl.String ~= "" then
+        local cmd = string.format("PowerOnState%d %s", i, ctl.String)
+        SendTasmotaCommand(cmd, function(response)
+          ParseTasmotaResponse("poweronstate", response)
+        end)
+      end
+    end
+  end
+  
+  -- Light Controls
+  Controls.dimmer.EventHandler = function(ctl)
+    local cmd = string.format("Dimmer %d", ctl.Value)
+    SendTasmotaCommand(cmd, function(response)
+      ParseTasmotaResponse("dimmer", response)
+    end)
+  end
+  
+  Controls.color_r.EventHandler = function(ctl)
+    local r = Controls.color_r.Value
+    local g = Controls.color_g.Value
+    local b = Controls.color_b.Value
+    local cmd = string.format("Color %02X%02X%02X", r, g, b)
+    SendTasmotaCommand(cmd, function(response)
+      ParseTasmotaResponse("color", response)
+    end)
+  end
+  
+  Controls.color_g.EventHandler = Controls.color_r.EventHandler
+  Controls.color_b.EventHandler = Controls.color_r.EventHandler
+  
+  Controls.color_w.EventHandler = function(ctl)
+    local cmd = string.format("White %d", ctl.Value)
+    SendTasmotaCommand(cmd, function(response)
+      ParseTasmotaResponse("white", response)
+    end)
+  end
+  
+  Controls.color_temp.EventHandler = function(ctl)
+    local cmd = string.format("CT %d", ctl.Value)
+    SendTasmotaCommand(cmd, function(response)
+      ParseTasmotaResponse("ct", response)
+    end)
+  end
+  
+  Controls.hsb_h.EventHandler = function(ctl)
+    local h = Controls.hsb_h.Value
+    local s = Controls.hsb_s.Value
+    local b = Controls.hsb_b.Value
+    local cmd = string.format("HsbColor %d,%d,%d", h, s, b)
+    SendTasmotaCommand(cmd, function(response)
+      ParseTasmotaResponse("hsb", response)
+    end)
+  end
+  
+  Controls.hsb_s.EventHandler = Controls.hsb_h.EventHandler
+  Controls.hsb_b.EventHandler = Controls.hsb_h.EventHandler
+  
+  Controls.scheme.EventHandler = function(ctl)
+    if ctl.String ~= "" then
+      local cmd = string.format("Scheme %s", ctl.String)
+      SendTasmotaCommand(cmd, function(response)
+        ParseTasmotaResponse("scheme", response)
+      end)
+    end
+  end
+  
+  Controls.fade_speed.EventHandler = function(ctl)
+    local cmd = string.format("Speed %d", ctl.Value)
+    SendTasmotaCommand(cmd, function(response)
+      ParseTasmotaResponse("speed", response)
+    end)
+  end
+  
+  -- GPIO Controls
+  for i = 1, 8 do
+    Controls["gpio_out " .. i].EventHandler = function(ctl)
+      -- Note: GPIO pin numbers need to be configured
+      -- This is a placeholder - actual implementation would need GPIO mapping
+      local cmd = string.format("Gpio%d %d", i, ctl.Boolean and 1 or 0)
+      SendTasmotaCommand(cmd, function(response)
+        ParseTasmotaResponse("gpio", response)
+      end)
+    end
+  end
+  
+  for i = 1, 4 do
+    Controls["pwm " .. i].EventHandler = function(ctl)
+      local cmd = string.format("Pwm%d %d", i, ctl.Value)
+      SendTasmotaCommand(cmd, function(response)
+        ParseTasmotaResponse("pwm", response)
+      end)
+    end
+  end
+  
+  -- Custom Command
+  Controls.send_command.EventHandler = function(ctl)
+    local cmd = Controls.custom_command.String
+    if cmd ~= "" then
+      SendTasmotaCommand(cmd, function(response)
+        ParseTasmotaResponse("custom", response)
+      end)
+    end
+  end
+  
+  -- ========================================
+  -- Initialization
+  -- ========================================
+  
+  -- Set default values
+  Controls.protocol.String = Properties["Default Protocol"].Value
+  Controls.poll_interval.Value = 5
+  
+  -- Set default port based on protocol
+  if Controls.port.String == "" then
+    if Properties["Default Protocol"].Value == "MQTT" then
+      Controls.port.String = "1883"
+    else
+      Controls.port.String = "80"
+    end
+  end
+  
+  UpdateStatus("Disconnected", "Ready to connect")
+  
+  -- Auto-connect if enabled
+  if Properties["Auto Connect"].Value then
+    Timer.CallAfter(function()
+      Controls.connect.Boolean = true
+    end, 2)
+  end
+  
+  DebugPrint("Function", "Tasmota ESP32 Interface Plugin Initialized")
+end
+
