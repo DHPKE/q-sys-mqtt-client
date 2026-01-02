@@ -765,6 +765,12 @@ function GetControlLayout(props)
       Size = {490, 470}
     })
     
+    -- Initialize layout arrays for power controls
+    layout["power"] = {}
+    layout["power_status"] = {}
+    layout["pulse_time"] = {}
+    layout["power_on_state"] = {}
+    
     for i = 1, props["Power Relay Count"].Value do
       local yPos = 30 + ((i-1) * 55)
       
@@ -842,6 +848,9 @@ function GetControlLayout(props)
       Size = {240, 140}
     })
     
+    -- Initialize layout arrays for sensors
+    layout["temperature"] = {}
+    
     for i = 1, props["Temperature Sensor Count"].Value do
       local yPos = 25 + ((i-1) * 28)
       
@@ -873,6 +882,8 @@ function GetControlLayout(props)
       Size = {240, 140}
     })
     
+    layout["humidity"] = {}
+    
     for i = 1, props["Humidity Sensor Count"].Value do
       local yPos = 25 + ((i-1) * 28)
       
@@ -903,6 +914,8 @@ function GetControlLayout(props)
       Position = {5, 155},
       Size = {240, 85}
     })
+    
+    layout["pressure"] = {}
     
     for i = 1, props["Pressure Sensor Count"].Value do
       local yPos = 175 + ((i-1) * 28)
@@ -1247,6 +1260,10 @@ function GetControlLayout(props)
       Size = {240, 230}
     })
     
+    -- Initialize layout arrays for GPIO
+    layout["gpio_out"] = {}
+    layout["gpio_in"] = {}
+    
     for i = 1, props["GPIO Output Count"].Value do
       local yPos = 25 + ((i-1) * 26)
       
@@ -1294,6 +1311,8 @@ function GetControlLayout(props)
       Size = {240, 120}
     })
     
+    layout["pwm"] = {}
+    
     for i = 1, props["PWM Count"].Value do
       local xPos = 265 + ((i-1) % 2) * 110
       local yPos = 25 + math.floor((i-1) / 2) * 55
@@ -1325,6 +1344,8 @@ function GetControlLayout(props)
       Position = {255, 135},
       Size = {240, 100}
     })
+    
+    layout["analog_in"] = {}
     
     for i = 1, props["Analog Input Count"].Value do
       local yPos = 155 + ((i-1) % 2) * 28
@@ -1527,6 +1548,7 @@ function GetControlLayout(props)
       HTextAlign = "Right"
     })
     
+    layout["friendly_name"] = {}
     layout["friendly_name"][1] = {
       PrettyName = "Friendly Name 1",
       Position = {125, 197},
