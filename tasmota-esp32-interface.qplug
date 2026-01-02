@@ -739,187 +739,254 @@ function GetControlLayout(props)
   -- PAGE 2: Power & Relays
   elseif CurrentPage == 2 then
     
-    table.insert(graphics, {
-      Type = "GroupBox",
-      Text = "Power Controls (Relays 1-8)",
-      Fill = {100, 180, 100},
-      CornerRadius = 12,
-      StrokeColor = {0, 0, 0},
-      StrokeWidth = 1,
-      Position = {5, 5},
-      Size = {490, 470}
-    })
+    local relay_count = props["Power Relay Count"].Value
     
-    -- Initialize layout arrays for power controls
-    layout["power"] = {}
-    layout["power_status"] = {}
-    layout["pulse_time"] = {}
-    layout["power_on_state"] = {}
-    
-    for i = 1, props["Power Relay Count"].Value do
-      local yPos = 30 + ((i-1) * 55)
-      
-      -- Relay Label
+    if relay_count == 0 then
+      -- No relays configured - show minimal informational message
       table.insert(graphics, {
-        Type = "Label",
-        Text = "Relay " .. i .. ":",
-        Position = {15, yPos + 10},
-        Size = {60, 20},
-        FontSize = 11,
-        HTextAlign = "Right"
+        Type = "GroupBox",
+        Text = "No Relays Configured",
+        Fill = {100, 100, 100},
+        CornerRadius = 12,
+        StrokeColor = {0, 0, 0},
+        StrokeWidth = 1,
+        Position = {5, 5},
+        Size = {490, 100}
       })
       
-      -- Power Toggle
-      layout["power"][i] = {
-        PrettyName = "Power " .. i,
-        Position = {85, yPos + 5},
-        Size = {80, 30},
-        Legend = "Power " .. i
-      }
-      
-      -- Status LED
-      layout["power_status"][i] = {
-        PrettyName = "Power " .. i .. " Status",
-        Position = {175, yPos + 10},
-        Size = {20, 20}
-      }
-      
-      -- Pulse Time
       table.insert(graphics, {
         Type = "Label",
-        Text = "Pulse:",
-        Position = {205, yPos + 10},
-        Size = {45, 20},
-        FontSize = 10,
-        HTextAlign = "Right"
+        Text = "Set 'Power Relay Count' in Properties to add relay controls",
+        Position = {20, 35},
+        Size = {450, 40},
+        FontSize = 12,
+        HTextAlign = "Center"
       })
+    else
+      -- Calculate dynamic height based on relay count
+      local groupbox_height = 30 + (relay_count * 55)
       
-      layout["pulse_time"][i] = {
-        PrettyName = "Pulse Time " .. i,
-        Position = {255, yPos + 7},
-        Size = {80, 26},
-        FontSize = 10
-      }
-      
-      -- Power On State
       table.insert(graphics, {
-        Type = "Label",
-        Text = "On State:",
-        Position = {345, yPos + 10},
-        Size = {55, 20},
-        FontSize = 10,
-        HTextAlign = "Right"
+        Type = "GroupBox",
+        Text = "Power Controls (Relays 1-" .. relay_count .. ")",
+        Fill = {100, 180, 100},
+        CornerRadius = 12,
+        StrokeColor = {0, 0, 0},
+        StrokeWidth = 1,
+        Position = {5, 5},
+        Size = {490, groupbox_height}
       })
       
-      layout["power_on_state"][i] = {
-        PrettyName = "Power On State " .. i,
-        Position = {405, yPos + 7},
-        Size = {75, 26},
-        FontSize = 10
-      }
+      -- Initialize layout arrays for power controls
+      layout["power"] = {}
+      layout["power_status"] = {}
+      layout["pulse_time"] = {}
+      layout["power_on_state"] = {}
+      
+      for i = 1, relay_count do
+        local yPos = 30 + ((i-1) * 55)
+        
+        -- Relay Label
+        table.insert(graphics, {
+          Type = "Label",
+          Text = "Relay " .. i .. ":",
+          Position = {15, yPos + 10},
+          Size = {60, 20},
+          FontSize = 11,
+          HTextAlign = "Right"
+        })
+        
+        -- Power Toggle
+        layout["power"][i] = {
+          PrettyName = "Power " .. i,
+          Position = {85, yPos + 5},
+          Size = {80, 30},
+          Legend = "Power " .. i
+        }
+        
+        -- Status LED
+        layout["power_status"][i] = {
+          PrettyName = "Power " .. i .. " Status",
+          Position = {175, yPos + 10},
+          Size = {20, 20}
+        }
+        
+        -- Pulse Time
+        table.insert(graphics, {
+          Type = "Label",
+          Text = "Pulse:",
+          Position = {205, yPos + 10},
+          Size = {45, 20},
+          FontSize = 10,
+          HTextAlign = "Right"
+        })
+        
+        layout["pulse_time"][i] = {
+          PrettyName = "Pulse Time " .. i,
+          Position = {255, yPos + 7},
+          Size = {80, 26},
+          FontSize = 10
+        }
+        
+        -- Power On State
+        table.insert(graphics, {
+          Type = "Label",
+          Text = "On State:",
+          Position = {345, yPos + 10},
+          Size = {55, 20},
+          FontSize = 10,
+          HTextAlign = "Right"
+        })
+        
+        layout["power_on_state"][i] = {
+          PrettyName = "Power On State " .. i,
+          Position = {405, yPos + 7},
+          Size = {75, 26},
+          FontSize = 10
+        }
+      end
     end
     
   -- PAGE 3: Sensors
   elseif CurrentPage == 3 then
     
+    local temp_count = props["Temperature Sensor Count"].Value
+    local hum_count = props["Humidity Sensor Count"].Value
+    local press_count = props["Pressure Sensor Count"].Value
+    
+    -- Temperature Sensors GroupBox
+    local temp_height = temp_count > 0 and (30 + temp_count * 28) or 60
     table.insert(graphics, {
       Type = "GroupBox",
-      Text = "Temperature Sensors",
+      Text = "Temperature Sensors" .. (temp_count > 0 and "" or " (None Configured)"),
       Fill = {200, 100, 100},
       CornerRadius = 8,
       StrokeColor = {0, 0, 0},
       StrokeWidth = 1,
       Position = {5, 5},
-      Size = {240, 140}
+      Size = {240, temp_height}
     })
     
-    -- Initialize layout arrays for sensors
-    layout["temperature"] = {}
-    
-    for i = 1, props["Temperature Sensor Count"].Value do
-      local yPos = 25 + ((i-1) * 28)
-      
+    if temp_count > 0 then
+      layout["temperature"] = {}
+      for i = 1, temp_count do
+        local yPos = 25 + ((i-1) * 28)
+        
+        table.insert(graphics, {
+          Type = "Label",
+          Text = "Temp " .. i .. ":",
+          Position = {15, yPos},
+          Size = {60, 20},
+          FontSize = 11,
+          HTextAlign = "Right"
+        })
+        
+        layout["temperature"][i] = {
+          PrettyName = "Temperature " .. i,
+          Position = {80, yPos - 2},
+          Size = {150, 24},
+          FontSize = 12
+        }
+      end
+    else
       table.insert(graphics, {
         Type = "Label",
-        Text = "Temp " .. i .. ":",
-        Position = {15, yPos},
-        Size = {60, 20},
-        FontSize = 11,
-        HTextAlign = "Right"
+        Text = "Set 'Temperature Sensor Count' in Properties",
+        Position = {15, 30},
+        Size = {210, 20},
+        FontSize = 10,
+        HTextAlign = "Center"
       })
-      
-      layout["temperature"][i] = {
-        PrettyName = "Temperature " .. i,
-        Position = {80, yPos - 2},
-        Size = {150, 24},
-        FontSize = 12
-      }
     end
     
+    -- Humidity Sensors GroupBox
+    local hum_height = hum_count > 0 and (30 + hum_count * 28) or 60
     table.insert(graphics, {
       Type = "GroupBox",
-      Text = "Humidity Sensors",
+      Text = "Humidity Sensors" .. (hum_count > 0 and "" or " (None Configured)"),
       Fill = {100, 150, 200},
       CornerRadius = 8,
       StrokeColor = {0, 0, 0},
       StrokeWidth = 1,
       Position = {255, 5},
-      Size = {240, 140}
+      Size = {240, hum_height}
     })
     
-    layout["humidity"] = {}
-    
-    for i = 1, props["Humidity Sensor Count"].Value do
-      local yPos = 25 + ((i-1) * 28)
-      
+    if hum_count > 0 then
+      layout["humidity"] = {}
+      for i = 1, hum_count do
+        local yPos = 25 + ((i-1) * 28)
+        
+        table.insert(graphics, {
+          Type = "Label",
+          Text = "Hum " .. i .. ":",
+          Position = {265, yPos},
+          Size = {60, 20},
+          FontSize = 11,
+          HTextAlign = "Right"
+        })
+        
+        layout["humidity"][i] = {
+          PrettyName = "Humidity " .. i,
+          Position = {330, yPos - 2},
+          Size = {150, 24},
+          FontSize = 12
+        }
+      end
+    else
       table.insert(graphics, {
         Type = "Label",
-        Text = "Hum " .. i .. ":",
-        Position = {265, yPos},
-        Size = {60, 20},
-        FontSize = 11,
-        HTextAlign = "Right"
+        Text = "Set 'Humidity Sensor Count' in Properties",
+        Position = {265, 30},
+        Size = {210, 20},
+        FontSize = 10,
+        HTextAlign = "Center"
       })
-      
-      layout["humidity"][i] = {
-        PrettyName = "Humidity " .. i,
-        Position = {330, yPos - 2},
-        Size = {150, 24},
-        FontSize = 12
-      }
     end
     
+    -- Pressure Sensors GroupBox
+    local press_height = press_count > 0 and (30 + press_count * 28) or 60
     table.insert(graphics, {
       Type = "GroupBox",
-      Text = "Pressure Sensors",
+      Text = "Pressure Sensors" .. (press_count > 0 and "" or " (None Configured)"),
       Fill = {150, 150, 150},
       CornerRadius = 8,
       StrokeColor = {0, 0, 0},
       StrokeWidth = 1,
       Position = {5, 155},
-      Size = {240, 85}
+      Size = {240, press_height}
     })
     
-    layout["pressure"] = {}
-    
-    for i = 1, props["Pressure Sensor Count"].Value do
-      local yPos = 175 + ((i-1) * 28)
-      
+    if press_count > 0 then
+      layout["pressure"] = {}
+      for i = 1, press_count do
+        local yPos = 175 + ((i-1) * 28)
+        
+        table.insert(graphics, {
+          Type = "Label",
+          Text = "Press " .. i .. ":",
+          Position = {15, yPos},
+          Size = {60, 20},
+          FontSize = 11,
+          HTextAlign = "Right"
+        })
+        
+        layout["pressure"][i] = {
+          PrettyName = "Pressure " .. i,
+          Position = {80, yPos - 2},
+          Size = {150, 24},
+          FontSize = 12
+        }
+      end
+    else
       table.insert(graphics, {
         Type = "Label",
-        Text = "Press " .. i .. ":",
-        Position = {15, yPos},
-        Size = {60, 20},
-        FontSize = 11,
-        HTextAlign = "Right"
+        Text = "Set 'Pressure Sensor Count' in Properties",
+        Position = {15, 180},
+        Size = {210, 20},
+        FontSize = 10,
+        HTextAlign = "Center"
       })
-      
-      layout["pressure"][i] = {
-        PrettyName = "Pressure " .. i,
-        Position = {80, yPos - 2},
-        Size = {150, 24},
-        FontSize = 12
-      }
     end
     
     table.insert(graphics, {
@@ -1234,123 +1301,166 @@ function GetControlLayout(props)
   -- PAGE 5: GPIO & Advanced
   elseif CurrentPage == 5 then
     
+    local gpio_out_count = props["GPIO Output Count"].Value
+    local gpio_in_count = props["GPIO Input Count"].Value
+    local pwm_count = props["PWM Count"].Value
+    local analog_count = props["Analog Input Count"].Value
+    
+    -- GPIO Outputs GroupBox
+    local gpio_height = gpio_out_count > 0 and (30 + gpio_out_count * 26) or 60
     table.insert(graphics, {
       Type = "GroupBox",
-      Text = "GPIO Outputs (1-8)",
+      Text = "GPIO Outputs" .. (gpio_out_count > 0 and " (1-" .. gpio_out_count .. ")" or " (None Configured)"),
       Fill = {120, 120, 180},
       CornerRadius = 8,
       StrokeColor = {0, 0, 0},
       StrokeWidth = 1,
       Position = {5, 5},
-      Size = {240, 230}
+      Size = {240, gpio_height}
     })
     
-    -- Initialize layout arrays for GPIO
-    layout["gpio_out"] = {}
-    layout["gpio_in"] = {}
-    
-    for i = 1, props["GPIO Output Count"].Value do
-      local yPos = 25 + ((i-1) * 26)
+    if gpio_out_count > 0 then
+      layout["gpio_out"] = {}
+      layout["gpio_in"] = {}
       
-      table.insert(graphics, {
-        Type = "Label",
-        Text = "GPIO " .. i .. ":",
-        Position = {15, yPos},
-        Size = {60, 20},
-        FontSize = 10,
-        HTextAlign = "Right"
-      })
-      
-      layout["gpio_out"][i] = {
-        PrettyName = "GPIO Output " .. i,
-        Position = {80, yPos - 2},
-        Size = {70, 24},
-        Legend = "Out " .. i
-      }
-      
-      if i <= props["GPIO Input Count"].Value then
-        layout["gpio_in"][i] = {
-          PrettyName = "GPIO Input " .. i,
-          Position = {160, yPos},
-          Size = {20, 20}
-        }
+      for i = 1, gpio_out_count do
+        local yPos = 25 + ((i-1) * 26)
         
         table.insert(graphics, {
           Type = "Label",
-          Text = "In",
-          Position = {185, yPos},
-          Size = {25, 20},
-          FontSize = 9
+          Text = "GPIO " .. i .. ":",
+          Position = {15, yPos},
+          Size = {60, 20},
+          FontSize = 10,
+          HTextAlign = "Right"
         })
+        
+        layout["gpio_out"][i] = {
+          PrettyName = "GPIO Output " .. i,
+          Position = {80, yPos - 2},
+          Size = {70, 24},
+          Legend = "Out " .. i
+        }
+        
+        if i <= gpio_in_count then
+          layout["gpio_in"][i] = {
+            PrettyName = "GPIO Input " .. i,
+            Position = {160, yPos},
+            Size = {20, 20}
+          }
+          
+          table.insert(graphics, {
+            Type = "Label",
+            Text = "In",
+            Position = {185, yPos},
+            Size = {25, 20},
+            FontSize = 9
+          })
+        end
       end
+    else
+      table.insert(graphics, {
+        Type = "Label",
+        Text = "Set 'GPIO Output Count' in Properties",
+        Position = {15, 30},
+        Size = {210, 20},
+        FontSize = 10,
+        HTextAlign = "Center"
+      })
     end
     
+    -- PWM Outputs GroupBox
+    local pwm_height = pwm_count > 0 and (30 + math.ceil(pwm_count / 2) * 55) or 60
     table.insert(graphics, {
       Type = "GroupBox",
-      Text = "PWM Outputs (1-4)",
+      Text = "PWM Outputs" .. (pwm_count > 0 and " (1-" .. pwm_count .. ")" or " (None Configured)"),
       Fill = {180, 150, 100},
       CornerRadius = 8,
       StrokeColor = {0, 0, 0},
       StrokeWidth = 1,
       Position = {255, 5},
-      Size = {240, 120}
+      Size = {240, pwm_height}
     })
     
-    layout["pwm"] = {}
-    
-    for i = 1, props["PWM Count"].Value do
-      local xPos = 265 + ((i-1) % 2) * 110
-      local yPos = 25 + math.floor((i-1) / 2) * 55
+    if pwm_count > 0 then
+      layout["pwm"] = {}
       
+      for i = 1, pwm_count do
+        local xPos = 265 + ((i-1) % 2) * 110
+        local yPos = 25 + math.floor((i-1) / 2) * 55
+        
+        table.insert(graphics, {
+          Type = "Label",
+          Text = "PWM " .. i .. ":",
+          Position = {xPos, yPos + 5},
+          Size = {45, 20},
+          FontSize = 10,
+          HTextAlign = "Right"
+        })
+        
+        layout["pwm"][i] = {
+          PrettyName = "PWM " .. i .. " (0-1023)",
+          Position = {xPos, yPos + 22},
+          Size = {90, 42},
+          FontSize = 11
+        }
+      end
+    else
       table.insert(graphics, {
         Type = "Label",
-        Text = "PWM " .. i .. ":",
-        Position = {xPos, yPos + 5},
-        Size = {45, 20},
+        Text = "Set 'PWM Count' in Properties",
+        Position = {265, 30},
+        Size = {210, 20},
         FontSize = 10,
-        HTextAlign = "Right"
+        HTextAlign = "Center"
       })
-      
-      layout["pwm"][i] = {
-        PrettyName = "PWM " .. i .. " (0-1023)",
-        Position = {xPos, yPos + 22},
-        Size = {90, 42},
-        FontSize = 11
-      }
     end
     
+    -- Analog Inputs GroupBox
+    local analog_height = analog_count > 0 and (30 + math.ceil(analog_count / 2) * 28) or 60
     table.insert(graphics, {
       Type = "GroupBox",
-      Text = "Analog Inputs (1-4)",
+      Text = "Analog Inputs" .. (analog_count > 0 and " (1-" .. analog_count .. ")" or " (None Configured)"),
       Fill = {100, 180, 150},
       CornerRadius = 8,
       StrokeColor = {0, 0, 0},
       StrokeWidth = 1,
       Position = {255, 135},
-      Size = {240, 100}
+      Size = {240, analog_height}
     })
     
-    layout["analog_in"] = {}
-    
-    for i = 1, props["Analog Input Count"].Value do
-      local yPos = 155 + ((i-1) % 2) * 28
-      local xPos = 265 + math.floor((i-1) / 2) * 110
+    if analog_count > 0 then
+      layout["analog_in"] = {}
       
+      for i = 1, analog_count do
+        local yPos = 155 + ((i-1) % 2) * 28
+        local xPos = 265 + math.floor((i-1) / 2) * 110
+        
+        table.insert(graphics, {
+          Type = "Label",
+          Text = "ADC" .. i .. ":",
+          Position = {xPos, yPos},
+          Size = {40, 20},
+          FontSize = 10,
+          HTextAlign = "Right"
+        })
+        
+        layout["analog_in"][i] = {
+          PrettyName = "Analog Input " .. i,
+          Position = {xPos + 45, yPos - 2},
+          Size = {55, 24},
+          FontSize = 10
+        }
+      end
+    else
       table.insert(graphics, {
         Type = "Label",
-        Text = "ADC" .. i .. ":",
-        Position = {xPos, yPos},
-        Size = {40, 20},
+        Text = "Set 'Analog Input Count' in Properties",
+        Position = {265, 160},
+        Size = {210, 20},
         FontSize = 10,
-        HTextAlign = "Right"
+        HTextAlign = "Center"
       })
-      
-      layout["analog_in"][i] = {
-        PrettyName = "Analog Input " .. i,
-        Position = {xPos + 45, yPos - 2},
-        Size = {55, 24},
-        FontSize = 10
-      }
     end
     
     table.insert(graphics, {
