@@ -2092,7 +2092,7 @@ if Controls then
     
     -- Parse power states
     local relay_count = Properties["Power Relay Count"].Value
-    if relay_count > 0 then
+    if relay_count > 0 and Controls.power and Controls.power[1] then
       if data.POWER ~= nil then
         Controls.power[1].Boolean = (data.POWER == "ON")
         Controls.power_status[1].Boolean = (data.POWER == "ON")
@@ -2100,7 +2100,7 @@ if Controls then
       
       for i = 1, relay_count do
         local key = "POWER" .. i
-        if data[key] ~= nil then
+        if data[key] ~= nil and Controls.power[i] then
           Controls.power[i].Boolean = (data[key] == "ON")
           Controls.power_status[i].Boolean = (data[key] == "ON")
         end
@@ -2115,7 +2115,7 @@ if Controls then
       local press_count = Properties["Pressure Sensor Count"].Value
       
       -- Temperature sensors
-      if temp_count > 0 then
+      if temp_count > 0 and Controls.temperature and Controls.temperature[1] then
         if sensors.DS18B20 and sensors.DS18B20.Temperature then
           Controls.temperature[1].String = string.format("%.1f °C", sensors.DS18B20.Temperature)
         end
@@ -2136,7 +2136,7 @@ if Controls then
       end
       
       -- Humidity sensors
-      if hum_count > 0 then
+      if hum_count > 0 and Controls.humidity and Controls.humidity[1] then
         if sensors.DHT11 or sensors.DHT22 or sensors.AM2301 then
           local dht = sensors.DHT11 or sensors.DHT22 or sensors.AM2301
           if dht.Humidity then
@@ -2152,7 +2152,7 @@ if Controls then
       end
       
       -- Pressure sensors
-      if press_count > 0 then
+      if press_count > 0 and Controls.pressure and Controls.pressure[1] then
         if sensors.BME280 or sensors.BMP280 then
           local bme = sensors.BME280 or sensors.BMP280
           if bme.Pressure then
@@ -2198,10 +2198,10 @@ if Controls then
     
     if data.Status then
       local relay_count = Properties["Power Relay Count"].Value
-      if data.Status.FriendlyName and relay_count > 0 then
+      if data.Status.FriendlyName and relay_count > 0 and Controls.friendly_name then
         if type(data.Status.FriendlyName) == "table" then
           for i, name in ipairs(data.Status.FriendlyName) do
-            if i <= relay_count then
+            if i <= relay_count and Controls.friendly_name[i] then
               Controls.friendly_name[i].String = name
             end
           end
