@@ -1,12 +1,12 @@
 -- Tasmota ESP32 Interface Plugin for Q-SYS
 -- Comprehensive interface for Tasmota devices on ESP32 hardware
--- Supports HTTP/REST, MQTT, and WebSocket communication protocols
+-- Supports HTTP/REST and MQTT communication protocols
 
 PluginInfo = {
   Name = "Tasmota ESP32 Interface",
   Version = "1.0.0",
   Id = "qsysc.tasmota.esp32.interface.1.0.0",
-  Description = "Complete interface for Tasmota ESP32 devices supporting HTTP/REST, MQTT, and WebSocket protocols",
+  Description = "Complete interface for Tasmota ESP32 devices supporting HTTP/REST and MQTT protocols",
   Author = "Q-SYS Community",
   ShowDebug = true
 }
@@ -55,7 +55,7 @@ function GetProperties()
     {
       Name = "Default Protocol",
       Type = "enum",
-      Choices = {"HTTP", "MQTT", "WebSocket"},
+      Choices = {"HTTP", "MQTT"},
       Value = "HTTP"
     },
     {
@@ -143,14 +143,6 @@ function GetControls(props)
     },
     {
       Name = "protocol_mqtt",
-      ControlType = "Button",
-      ButtonType = "Momentary",
-      PinStyle = "Input",
-      UserPin = true,
-      Count = 1
-    },
-    {
-      Name = "protocol_websocket",
       ControlType = "Button",
       ButtonType = "Momentary",
       PinStyle = "Input",
@@ -611,13 +603,6 @@ function GetControlLayout(props)
       Legend = "MQTT"
     }
     
-    layout["protocol_websocket"] = {
-      PrettyName = "WebSocket",
-      Position = {395, 30},
-      Size = {90, 28},
-      Legend = "WebSocket"
-    }
-    
     -- Host/IP
     table.insert(graphics, {
       Type = "Label",
@@ -754,187 +739,254 @@ function GetControlLayout(props)
   -- PAGE 2: Power & Relays
   elseif CurrentPage == 2 then
     
-    table.insert(graphics, {
-      Type = "GroupBox",
-      Text = "Power Controls (Relays 1-8)",
-      Fill = {100, 180, 100},
-      CornerRadius = 12,
-      StrokeColor = {0, 0, 0},
-      StrokeWidth = 1,
-      Position = {5, 5},
-      Size = {490, 470}
-    })
+    local relay_count = props["Power Relay Count"].Value
     
-    -- Initialize layout arrays for power controls
-    layout["power"] = {}
-    layout["power_status"] = {}
-    layout["pulse_time"] = {}
-    layout["power_on_state"] = {}
-    
-    for i = 1, props["Power Relay Count"].Value do
-      local yPos = 30 + ((i-1) * 55)
-      
-      -- Relay Label
+    if relay_count == 0 then
+      -- No relays configured - show minimal informational message
       table.insert(graphics, {
-        Type = "Label",
-        Text = "Relay " .. i .. ":",
-        Position = {15, yPos + 10},
-        Size = {60, 20},
-        FontSize = 11,
-        HTextAlign = "Right"
+        Type = "GroupBox",
+        Text = "No Relays Configured",
+        Fill = {100, 100, 100},
+        CornerRadius = 12,
+        StrokeColor = {0, 0, 0},
+        StrokeWidth = 1,
+        Position = {5, 5},
+        Size = {490, 100}
       })
       
-      -- Power Toggle
-      layout["power"][i] = {
-        PrettyName = "Power " .. i,
-        Position = {85, yPos + 5},
-        Size = {80, 30},
-        Legend = "Power " .. i
-      }
-      
-      -- Status LED
-      layout["power_status"][i] = {
-        PrettyName = "Power " .. i .. " Status",
-        Position = {175, yPos + 10},
-        Size = {20, 20}
-      }
-      
-      -- Pulse Time
       table.insert(graphics, {
         Type = "Label",
-        Text = "Pulse:",
-        Position = {205, yPos + 10},
-        Size = {45, 20},
-        FontSize = 10,
-        HTextAlign = "Right"
+        Text = "Set 'Power Relay Count' in Properties to add relay controls",
+        Position = {20, 35},
+        Size = {450, 40},
+        FontSize = 12,
+        HTextAlign = "Center"
       })
+    else
+      -- Calculate dynamic height based on relay count
+      local groupbox_height = 30 + (relay_count * 55)
       
-      layout["pulse_time"][i] = {
-        PrettyName = "Pulse Time " .. i,
-        Position = {255, yPos + 7},
-        Size = {80, 26},
-        FontSize = 10
-      }
-      
-      -- Power On State
       table.insert(graphics, {
-        Type = "Label",
-        Text = "On State:",
-        Position = {345, yPos + 10},
-        Size = {55, 20},
-        FontSize = 10,
-        HTextAlign = "Right"
+        Type = "GroupBox",
+        Text = "Power Controls (Relays 1-" .. relay_count .. ")",
+        Fill = {100, 180, 100},
+        CornerRadius = 12,
+        StrokeColor = {0, 0, 0},
+        StrokeWidth = 1,
+        Position = {5, 5},
+        Size = {490, groupbox_height}
       })
       
-      layout["power_on_state"][i] = {
-        PrettyName = "Power On State " .. i,
-        Position = {405, yPos + 7},
-        Size = {75, 26},
-        FontSize = 10
-      }
+      -- Initialize layout arrays for power controls
+      layout["power"] = {}
+      layout["power_status"] = {}
+      layout["pulse_time"] = {}
+      layout["power_on_state"] = {}
+      
+      for i = 1, relay_count do
+        local yPos = 30 + ((i-1) * 55)
+        
+        -- Relay Label
+        table.insert(graphics, {
+          Type = "Label",
+          Text = "Relay " .. i .. ":",
+          Position = {15, yPos + 10},
+          Size = {60, 20},
+          FontSize = 11,
+          HTextAlign = "Right"
+        })
+        
+        -- Power Toggle
+        layout["power"][i] = {
+          PrettyName = "Power " .. i,
+          Position = {85, yPos + 5},
+          Size = {80, 30},
+          Legend = "Power " .. i
+        }
+        
+        -- Status LED
+        layout["power_status"][i] = {
+          PrettyName = "Power " .. i .. " Status",
+          Position = {175, yPos + 10},
+          Size = {20, 20}
+        }
+        
+        -- Pulse Time
+        table.insert(graphics, {
+          Type = "Label",
+          Text = "Pulse:",
+          Position = {205, yPos + 10},
+          Size = {45, 20},
+          FontSize = 10,
+          HTextAlign = "Right"
+        })
+        
+        layout["pulse_time"][i] = {
+          PrettyName = "Pulse Time " .. i,
+          Position = {255, yPos + 7},
+          Size = {80, 26},
+          FontSize = 10
+        }
+        
+        -- Power On State
+        table.insert(graphics, {
+          Type = "Label",
+          Text = "On State:",
+          Position = {345, yPos + 10},
+          Size = {55, 20},
+          FontSize = 10,
+          HTextAlign = "Right"
+        })
+        
+        layout["power_on_state"][i] = {
+          PrettyName = "Power On State " .. i,
+          Position = {405, yPos + 7},
+          Size = {75, 26},
+          FontSize = 10
+        }
+      end
     end
     
   -- PAGE 3: Sensors
   elseif CurrentPage == 3 then
     
+    local temp_count = props["Temperature Sensor Count"].Value
+    local hum_count = props["Humidity Sensor Count"].Value
+    local press_count = props["Pressure Sensor Count"].Value
+    
+    -- Temperature Sensors GroupBox
+    local temp_height = temp_count > 0 and (30 + temp_count * 28) or 60
     table.insert(graphics, {
       Type = "GroupBox",
-      Text = "Temperature Sensors",
+      Text = "Temperature Sensors" .. (temp_count > 0 and "" or " (None Configured)"),
       Fill = {200, 100, 100},
       CornerRadius = 8,
       StrokeColor = {0, 0, 0},
       StrokeWidth = 1,
       Position = {5, 5},
-      Size = {240, 140}
+      Size = {240, temp_height}
     })
     
-    -- Initialize layout arrays for sensors
-    layout["temperature"] = {}
-    
-    for i = 1, props["Temperature Sensor Count"].Value do
-      local yPos = 25 + ((i-1) * 28)
-      
+    if temp_count > 0 then
+      layout["temperature"] = {}
+      for i = 1, temp_count do
+        local yPos = 25 + ((i-1) * 28)
+        
+        table.insert(graphics, {
+          Type = "Label",
+          Text = "Temp " .. i .. ":",
+          Position = {15, yPos},
+          Size = {60, 20},
+          FontSize = 11,
+          HTextAlign = "Right"
+        })
+        
+        layout["temperature"][i] = {
+          PrettyName = "Temperature " .. i,
+          Position = {80, yPos - 2},
+          Size = {150, 24},
+          FontSize = 12
+        }
+      end
+    else
       table.insert(graphics, {
         Type = "Label",
-        Text = "Temp " .. i .. ":",
-        Position = {15, yPos},
-        Size = {60, 20},
-        FontSize = 11,
-        HTextAlign = "Right"
+        Text = "Set 'Temperature Sensor Count' in Properties",
+        Position = {15, 30},
+        Size = {210, 20},
+        FontSize = 10,
+        HTextAlign = "Center"
       })
-      
-      layout["temperature"][i] = {
-        PrettyName = "Temperature " .. i,
-        Position = {80, yPos - 2},
-        Size = {150, 24},
-        FontSize = 12
-      }
     end
     
+    -- Humidity Sensors GroupBox
+    local hum_height = hum_count > 0 and (30 + hum_count * 28) or 60
     table.insert(graphics, {
       Type = "GroupBox",
-      Text = "Humidity Sensors",
+      Text = "Humidity Sensors" .. (hum_count > 0 and "" or " (None Configured)"),
       Fill = {100, 150, 200},
       CornerRadius = 8,
       StrokeColor = {0, 0, 0},
       StrokeWidth = 1,
       Position = {255, 5},
-      Size = {240, 140}
+      Size = {240, hum_height}
     })
     
-    layout["humidity"] = {}
-    
-    for i = 1, props["Humidity Sensor Count"].Value do
-      local yPos = 25 + ((i-1) * 28)
-      
+    if hum_count > 0 then
+      layout["humidity"] = {}
+      for i = 1, hum_count do
+        local yPos = 25 + ((i-1) * 28)
+        
+        table.insert(graphics, {
+          Type = "Label",
+          Text = "Hum " .. i .. ":",
+          Position = {265, yPos},
+          Size = {60, 20},
+          FontSize = 11,
+          HTextAlign = "Right"
+        })
+        
+        layout["humidity"][i] = {
+          PrettyName = "Humidity " .. i,
+          Position = {330, yPos - 2},
+          Size = {150, 24},
+          FontSize = 12
+        }
+      end
+    else
       table.insert(graphics, {
         Type = "Label",
-        Text = "Hum " .. i .. ":",
-        Position = {265, yPos},
-        Size = {60, 20},
-        FontSize = 11,
-        HTextAlign = "Right"
+        Text = "Set 'Humidity Sensor Count' in Properties",
+        Position = {265, 30},
+        Size = {210, 20},
+        FontSize = 10,
+        HTextAlign = "Center"
       })
-      
-      layout["humidity"][i] = {
-        PrettyName = "Humidity " .. i,
-        Position = {330, yPos - 2},
-        Size = {150, 24},
-        FontSize = 12
-      }
     end
     
+    -- Pressure Sensors GroupBox
+    local press_height = press_count > 0 and (30 + press_count * 28) or 60
     table.insert(graphics, {
       Type = "GroupBox",
-      Text = "Pressure Sensors",
+      Text = "Pressure Sensors" .. (press_count > 0 and "" or " (None Configured)"),
       Fill = {150, 150, 150},
       CornerRadius = 8,
       StrokeColor = {0, 0, 0},
       StrokeWidth = 1,
       Position = {5, 155},
-      Size = {240, 85}
+      Size = {240, press_height}
     })
     
-    layout["pressure"] = {}
-    
-    for i = 1, props["Pressure Sensor Count"].Value do
-      local yPos = 175 + ((i-1) * 28)
-      
+    if press_count > 0 then
+      layout["pressure"] = {}
+      for i = 1, press_count do
+        local yPos = 175 + ((i-1) * 28)
+        
+        table.insert(graphics, {
+          Type = "Label",
+          Text = "Press " .. i .. ":",
+          Position = {15, yPos},
+          Size = {60, 20},
+          FontSize = 11,
+          HTextAlign = "Right"
+        })
+        
+        layout["pressure"][i] = {
+          PrettyName = "Pressure " .. i,
+          Position = {80, yPos - 2},
+          Size = {150, 24},
+          FontSize = 12
+        }
+      end
+    else
       table.insert(graphics, {
         Type = "Label",
-        Text = "Press " .. i .. ":",
-        Position = {15, yPos},
-        Size = {60, 20},
-        FontSize = 11,
-        HTextAlign = "Right"
+        Text = "Set 'Pressure Sensor Count' in Properties",
+        Position = {15, 180},
+        Size = {210, 20},
+        FontSize = 10,
+        HTextAlign = "Center"
       })
-      
-      layout["pressure"][i] = {
-        PrettyName = "Pressure " .. i,
-        Position = {80, yPos - 2},
-        Size = {150, 24},
-        FontSize = 12
-      }
     end
     
     table.insert(graphics, {
@@ -1249,123 +1301,166 @@ function GetControlLayout(props)
   -- PAGE 5: GPIO & Advanced
   elseif CurrentPage == 5 then
     
+    local gpio_out_count = props["GPIO Output Count"].Value
+    local gpio_in_count = props["GPIO Input Count"].Value
+    local pwm_count = props["PWM Count"].Value
+    local analog_count = props["Analog Input Count"].Value
+    
+    -- GPIO Outputs GroupBox
+    local gpio_height = gpio_out_count > 0 and (30 + gpio_out_count * 26) or 60
     table.insert(graphics, {
       Type = "GroupBox",
-      Text = "GPIO Outputs (1-8)",
+      Text = "GPIO Outputs" .. (gpio_out_count > 0 and " (1-" .. gpio_out_count .. ")" or " (None Configured)"),
       Fill = {120, 120, 180},
       CornerRadius = 8,
       StrokeColor = {0, 0, 0},
       StrokeWidth = 1,
       Position = {5, 5},
-      Size = {240, 230}
+      Size = {240, gpio_height}
     })
     
-    -- Initialize layout arrays for GPIO
-    layout["gpio_out"] = {}
-    layout["gpio_in"] = {}
-    
-    for i = 1, props["GPIO Output Count"].Value do
-      local yPos = 25 + ((i-1) * 26)
+    if gpio_out_count > 0 then
+      layout["gpio_out"] = {}
+      layout["gpio_in"] = {}
       
-      table.insert(graphics, {
-        Type = "Label",
-        Text = "GPIO " .. i .. ":",
-        Position = {15, yPos},
-        Size = {60, 20},
-        FontSize = 10,
-        HTextAlign = "Right"
-      })
-      
-      layout["gpio_out"][i] = {
-        PrettyName = "GPIO Output " .. i,
-        Position = {80, yPos - 2},
-        Size = {70, 24},
-        Legend = "Out " .. i
-      }
-      
-      if i <= props["GPIO Input Count"].Value then
-        layout["gpio_in"][i] = {
-          PrettyName = "GPIO Input " .. i,
-          Position = {160, yPos},
-          Size = {20, 20}
-        }
+      for i = 1, gpio_out_count do
+        local yPos = 25 + ((i-1) * 26)
         
         table.insert(graphics, {
           Type = "Label",
-          Text = "In",
-          Position = {185, yPos},
-          Size = {25, 20},
-          FontSize = 9
+          Text = "GPIO " .. i .. ":",
+          Position = {15, yPos},
+          Size = {60, 20},
+          FontSize = 10,
+          HTextAlign = "Right"
         })
+        
+        layout["gpio_out"][i] = {
+          PrettyName = "GPIO Output " .. i,
+          Position = {80, yPos - 2},
+          Size = {70, 24},
+          Legend = "Out " .. i
+        }
+        
+        if i <= gpio_in_count then
+          layout["gpio_in"][i] = {
+            PrettyName = "GPIO Input " .. i,
+            Position = {160, yPos},
+            Size = {20, 20}
+          }
+          
+          table.insert(graphics, {
+            Type = "Label",
+            Text = "In",
+            Position = {185, yPos},
+            Size = {25, 20},
+            FontSize = 9
+          })
+        end
       end
+    else
+      table.insert(graphics, {
+        Type = "Label",
+        Text = "Set 'GPIO Output Count' in Properties",
+        Position = {15, 30},
+        Size = {210, 20},
+        FontSize = 10,
+        HTextAlign = "Center"
+      })
     end
     
+    -- PWM Outputs GroupBox
+    local pwm_height = pwm_count > 0 and (30 + math.ceil(pwm_count / 2) * 55) or 60
     table.insert(graphics, {
       Type = "GroupBox",
-      Text = "PWM Outputs (1-4)",
+      Text = "PWM Outputs" .. (pwm_count > 0 and " (1-" .. pwm_count .. ")" or " (None Configured)"),
       Fill = {180, 150, 100},
       CornerRadius = 8,
       StrokeColor = {0, 0, 0},
       StrokeWidth = 1,
       Position = {255, 5},
-      Size = {240, 120}
+      Size = {240, pwm_height}
     })
     
-    layout["pwm"] = {}
-    
-    for i = 1, props["PWM Count"].Value do
-      local xPos = 265 + ((i-1) % 2) * 110
-      local yPos = 25 + math.floor((i-1) / 2) * 55
+    if pwm_count > 0 then
+      layout["pwm"] = {}
       
+      for i = 1, pwm_count do
+        local xPos = 265 + ((i-1) % 2) * 110
+        local yPos = 25 + math.floor((i-1) / 2) * 55
+        
+        table.insert(graphics, {
+          Type = "Label",
+          Text = "PWM " .. i .. ":",
+          Position = {xPos, yPos + 5},
+          Size = {45, 20},
+          FontSize = 10,
+          HTextAlign = "Right"
+        })
+        
+        layout["pwm"][i] = {
+          PrettyName = "PWM " .. i .. " (0-1023)",
+          Position = {xPos, yPos + 22},
+          Size = {90, 42},
+          FontSize = 11
+        }
+      end
+    else
       table.insert(graphics, {
         Type = "Label",
-        Text = "PWM " .. i .. ":",
-        Position = {xPos, yPos + 5},
-        Size = {45, 20},
+        Text = "Set 'PWM Count' in Properties",
+        Position = {265, 30},
+        Size = {210, 20},
         FontSize = 10,
-        HTextAlign = "Right"
+        HTextAlign = "Center"
       })
-      
-      layout["pwm"][i] = {
-        PrettyName = "PWM " .. i .. " (0-1023)",
-        Position = {xPos, yPos + 22},
-        Size = {90, 42},
-        FontSize = 11
-      }
     end
     
+    -- Analog Inputs GroupBox
+    local analog_height = analog_count > 0 and (30 + math.ceil(analog_count / 2) * 28) or 60
     table.insert(graphics, {
       Type = "GroupBox",
-      Text = "Analog Inputs (1-4)",
+      Text = "Analog Inputs" .. (analog_count > 0 and " (1-" .. analog_count .. ")" or " (None Configured)"),
       Fill = {100, 180, 150},
       CornerRadius = 8,
       StrokeColor = {0, 0, 0},
       StrokeWidth = 1,
       Position = {255, 135},
-      Size = {240, 100}
+      Size = {240, analog_height}
     })
     
-    layout["analog_in"] = {}
-    
-    for i = 1, props["Analog Input Count"].Value do
-      local yPos = 155 + ((i-1) % 2) * 28
-      local xPos = 265 + math.floor((i-1) / 2) * 110
+    if analog_count > 0 then
+      layout["analog_in"] = {}
       
+      for i = 1, analog_count do
+        local yPos = 155 + ((i-1) % 2) * 28
+        local xPos = 265 + math.floor((i-1) / 2) * 110
+        
+        table.insert(graphics, {
+          Type = "Label",
+          Text = "ADC" .. i .. ":",
+          Position = {xPos, yPos},
+          Size = {40, 20},
+          FontSize = 10,
+          HTextAlign = "Right"
+        })
+        
+        layout["analog_in"][i] = {
+          PrettyName = "Analog Input " .. i,
+          Position = {xPos + 45, yPos - 2},
+          Size = {55, 24},
+          FontSize = 10
+        }
+      end
+    else
       table.insert(graphics, {
         Type = "Label",
-        Text = "ADC" .. i .. ":",
-        Position = {xPos, yPos},
-        Size = {40, 20},
+        Text = "Set 'Analog Input Count' in Properties",
+        Position = {265, 160},
+        Size = {210, 20},
         FontSize = 10,
-        HTextAlign = "Right"
+        HTextAlign = "Center"
       })
-      
-      layout["analog_in"][i] = {
-        PrettyName = "Analog Input " .. i,
-        Position = {xPos + 45, yPos - 2},
-        Size = {55, 24},
-        FontSize = 10
-      }
     end
     
     table.insert(graphics, {
@@ -1568,9 +1663,8 @@ if Controls then
   -- State Variables
   local active_socket = nil
   local mqtt_socket = nil
-  local ws_socket = nil
   local http_socket = nil
-  local current_protocol = "HTTP"
+  local current_protocol = Properties["Default Protocol"].Value
   local is_connected = false
   local packet_id = 1
   local keep_alive_timer = nil
@@ -1769,9 +1863,6 @@ if Controls then
     elseif current_protocol == "MQTT" then
       local topic = "cmnd/" .. Controls.mqtt_topic.String .. "/" .. command
       PublishMQTT(topic, "", 0, false)
-      
-    elseif current_protocol == "WebSocket" then
-      SendWebSocketMessage(command)
     end
   end
   
@@ -1981,71 +2072,16 @@ if Controls then
   end
   
   -- ========================================
-  -- WebSocket Implementation
-  -- ========================================
-  
-  local function CreateWebSocketHandshake()
-    local key = Crypto.Base64Encode(tostring(math.random()) .. tostring(os.time()))
-    local handshake = string.format("GET /ws HTTP/1.1\r\n")
-    handshake = handshake .. string.format("Host: %s\r\n", Controls.host.String)
-    handshake = handshake .. "Upgrade: websocket\r\n"
-    handshake = handshake .. "Connection: Upgrade\r\n"
-    handshake = handshake .. string.format("Sec-WebSocket-Key: %s\r\n", key)
-    handshake = handshake .. "Sec-WebSocket-Version: 13\r\n"
-    handshake = handshake .. "\r\n"
-    return handshake
-  end
-  
-  local function SendWebSocketMessage(message)
-    DebugPrint("Function", "SendWebSocketMessage: " .. message)
-    
-    if not ws_socket or not ws_socket.IsConnected then
-      DebugPrint("Function", "WebSocket not connected")
-      return
-    end
-    
-    -- Build WebSocket frame (text frame, FIN=1, opcode=0x1)
-    local frame = string.char(0x81) -- FIN + Text frame
-    local len = #message
-    
-    if len < 126 then
-      frame = frame .. string.char(0x80 + len) -- Masked + length
-    elseif len < 65536 then
-      frame = frame .. string.char(0xFE) -- Masked + extended length (16-bit)
-      frame = frame .. string.char(math.floor(len / 256), len % 256)
-    else
-      -- Length > 65535 not supported in this implementation
-      DebugPrint("Function", "Message too long for WebSocket")
-      return
-    end
-    
-    -- Add masking key (4 random bytes)
-    local mask = {}
-    for i = 1, 4 do
-      mask[i] = math.random(0, 255)
-      frame = frame .. string.char(mask[i])
-    end
-    
-    -- Apply mask to payload
-    local masked_payload = ""
-    for i = 1, len do
-      local byte = string.byte(message, i)
-      local masked_byte = byte ~ mask[((i - 1) % 4) + 1]
-      masked_payload = masked_payload .. string.char(masked_byte)
-    end
-    
-    frame = frame .. masked_payload
-    
-    DebugPrint("Tx", "WebSocket frame: " .. BytesToHex(frame:sub(1, math.min(50, #frame))))
-    ws_socket:Write(frame)
-  end
-  
-  -- ========================================
   -- Tasmota Response Parser
   -- ========================================
   
   local function ParseTasmotaResponse(topic, payload)
     DebugPrint("Function", "ParseTasmotaResponse")
+    
+    if not payload or payload == "" then
+      DebugPrint("Function", "Empty response payload")
+      return
+    end
     
     local data = ParseJSON(payload)
     
@@ -2055,50 +2091,73 @@ if Controls then
     end
     
     -- Parse power states
-    if data.POWER ~= nil and Properties["Power Relay Count"].Value > 0 then
-      Controls.power[1].Boolean = (data.POWER == "ON")
-      Controls.power_status[1].Boolean = (data.POWER == "ON")
-    end
-    
-    for i = 1, Properties["Power Relay Count"].Value do
-      local key = "POWER" .. i
-      if data[key] ~= nil then
-        Controls.power[i].Boolean = (data[key] == "ON")
-        Controls.power_status[i].Boolean = (data[key] == "ON")
+    local relay_count = Properties["Power Relay Count"].Value
+    if relay_count > 0 and Controls.power and Controls.power[1] then
+      if data.POWER ~= nil then
+        Controls.power[1].Boolean = (data.POWER == "ON")
+        Controls.power_status[1].Boolean = (data.POWER == "ON")
+      end
+      
+      for i = 1, relay_count do
+        local key = "POWER" .. i
+        if data[key] ~= nil and Controls.power[i] then
+          Controls.power[i].Boolean = (data[key] == "ON")
+          Controls.power_status[i].Boolean = (data[key] == "ON")
+        end
       end
     end
     
     -- Parse sensor data
     if data.StatusSNS ~= nil then
       local sensors = data.StatusSNS
+      local temp_count = Properties["Temperature Sensor Count"].Value
+      local hum_count = Properties["Humidity Sensor Count"].Value
+      local press_count = Properties["Pressure Sensor Count"].Value
       
       -- Temperature sensors
-      if sensors.DS18B20 then
-        if sensors.DS18B20.Temperature and Properties["Temperature Sensor Count"].Value > 0 then
+      if temp_count > 0 and Controls.temperature and Controls.temperature[1] then
+        if sensors.DS18B20 and sensors.DS18B20.Temperature then
           Controls.temperature[1].String = string.format("%.1f °C", sensors.DS18B20.Temperature)
         end
+        
+        if sensors.DHT11 or sensors.DHT22 or sensors.AM2301 then
+          local dht = sensors.DHT11 or sensors.DHT22 or sensors.AM2301
+          if dht.Temperature then
+            Controls.temperature[1].String = string.format("%.1f °C", dht.Temperature)
+          end
+        end
+        
+        if sensors.BME280 or sensors.BMP280 then
+          local bme = sensors.BME280 or sensors.BMP280
+          if bme.Temperature then
+            Controls.temperature[1].String = string.format("%.1f °C", bme.Temperature)
+          end
+        end
       end
       
-      if sensors.DHT11 or sensors.DHT22 or sensors.AM2301 then
-        local dht = sensors.DHT11 or sensors.DHT22 or sensors.AM2301
-        if dht.Temperature and Properties["Temperature Sensor Count"].Value > 0 then
-          Controls.temperature[1].String = string.format("%.1f °C", dht.Temperature)
+      -- Humidity sensors
+      if hum_count > 0 and Controls.humidity and Controls.humidity[1] then
+        if sensors.DHT11 or sensors.DHT22 or sensors.AM2301 then
+          local dht = sensors.DHT11 or sensors.DHT22 or sensors.AM2301
+          if dht.Humidity then
+            Controls.humidity[1].String = string.format("%.1f %%", dht.Humidity)
+          end
         end
-        if dht.Humidity and Properties["Humidity Sensor Count"].Value > 0 then
-          Controls.humidity[1].String = string.format("%.1f %%", dht.Humidity)
+        
+        if sensors.BME280 then
+          if sensors.BME280.Humidity then
+            Controls.humidity[1].String = string.format("%.1f %%", sensors.BME280.Humidity)
+          end
         end
       end
       
-      if sensors.BME280 or sensors.BMP280 then
-        local bme = sensors.BME280 or sensors.BMP280
-        if bme.Temperature and Properties["Temperature Sensor Count"].Value > 0 then
-          Controls.temperature[1].String = string.format("%.1f °C", bme.Temperature)
-        end
-        if bme.Humidity and Properties["Humidity Sensor Count"].Value > 0 then
-          Controls.humidity[1].String = string.format("%.1f %%", bme.Humidity)
-        end
-        if bme.Pressure and Properties["Pressure Sensor Count"].Value > 0 then
-          Controls.pressure[1].String = string.format("%.1f hPa", bme.Pressure)
+      -- Pressure sensors
+      if press_count > 0 and Controls.pressure and Controls.pressure[1] then
+        if sensors.BME280 or sensors.BMP280 then
+          local bme = sensors.BME280 or sensors.BMP280
+          if bme.Pressure then
+            Controls.pressure[1].String = string.format("%.1f hPa", bme.Pressure)
+          end
         end
       end
       
@@ -2138,10 +2197,11 @@ if Controls then
     end
     
     if data.Status then
-      if data.Status.FriendlyName then
+      local relay_count = Properties["Power Relay Count"].Value
+      if data.Status.FriendlyName and relay_count > 0 and Controls.friendly_name then
         if type(data.Status.FriendlyName) == "table" then
           for i, name in ipairs(data.Status.FriendlyName) do
-            if i <= Properties["Power Relay Count"].Value then
+            if i <= relay_count and Controls.friendly_name[i] then
               Controls.friendly_name[i].String = name
             end
           end
@@ -2289,71 +2349,6 @@ if Controls then
     mqtt_socket:Connect(Controls.host.String, port)
   end
   
-  local function ConnectWebSocket()
-    DebugPrint("Function", "ConnectWebSocket")
-    current_protocol = "WebSocket"
-    Controls.protocol.String = "WebSocket"
-    
-    if ws_socket then
-      ws_socket:Disconnect()
-    end
-    
-    ws_socket = TcpSocket.New()
-    ws_socket.ReadTimeout = 0
-    ws_socket.WriteTimeout = Properties["Connection Timeout"].Value
-    
-    ws_socket.Connected = function(sock)
-      DebugPrint("Function", "WebSocket connected")
-      UpdateStatus("Connecting", "WebSocket handshake...")
-      
-      local handshake = CreateWebSocketHandshake()
-      DebugPrint("Tx", "WebSocket handshake:\n" .. handshake)
-      sock:Write(handshake)
-    end
-    
-    ws_socket.Reconnect = function(sock)
-      DebugPrint("Function", "WebSocket reconnect")
-      UpdateStatus("Connecting", "WebSocket reconnecting...")
-    end
-    
-    ws_socket.Data = function(sock)
-      local data = sock:Read(sock.BufferLength)
-      if not data or #data == 0 then return end
-      
-      DebugPrint("Rx", "WebSocket data: " .. data)
-      
-      -- Check for HTTP upgrade response
-      if data:match("HTTP/1.1 101") then
-        DebugPrint("Rx", "WebSocket upgrade successful")
-        UpdateStatus("Connected", "WebSocket connected")
-        is_connected = true
-      else
-        -- Parse WebSocket frames (simplified)
-        ParseTasmotaResponse("websocket", data)
-      end
-    end
-    
-    ws_socket.Closed = function(sock)
-      DebugPrint("Function", "WebSocket closed")
-      UpdateStatus("Disconnected", "WebSocket connection closed")
-      is_connected = false
-    end
-    
-    ws_socket.Error = function(sock, err)
-      DebugPrint("Function", "WebSocket error: " .. err)
-      UpdateStatus("Error", "WebSocket error: " .. err)
-    end
-    
-    ws_socket.Timeout = function(sock)
-      DebugPrint("Function", "WebSocket timeout")
-      UpdateStatus("Error", "WebSocket connection timeout")
-    end
-    
-    local port = tonumber(Controls.port.String) or 80
-    DebugPrint("Tx", string.format("Connecting to WebSocket %s:%d", Controls.host.String, port))
-    ws_socket:Connect(Controls.host.String, port)
-  end
-  
   local function Disconnect()
     DebugPrint("Function", "Disconnect")
     
@@ -2375,10 +2370,6 @@ if Controls then
       mqtt_socket:Disconnect()
     end
     
-    if ws_socket and ws_socket.IsConnected then
-      ws_socket:Disconnect()
-    end
-    
     is_connected = false
     UpdateStatus("Disconnected", "Disconnected")
   end
@@ -2390,43 +2381,55 @@ if Controls then
   -- Connection Controls
   Controls.protocol_http.EventHandler = function(ctl)
     if ctl.Boolean then
-      if is_connected then
-        Disconnect()
-      end
-      ConnectHTTP()
+      current_protocol = "HTTP"
+      Controls.protocol.String = "HTTP"
+      print("[Tasmota] Protocol selected: HTTP")
+      -- DO NOT connect here - user must press Connect button
     end
   end
   
   Controls.protocol_mqtt.EventHandler = function(ctl)
     if ctl.Boolean then
-      if is_connected then
-        Disconnect()
-      end
-      ConnectMQTT()
-    end
-  end
-  
-  Controls.protocol_websocket.EventHandler = function(ctl)
-    if ctl.Boolean then
-      if is_connected then
-        Disconnect()
-      end
-      ConnectWebSocket()
+      current_protocol = "MQTT"
+      Controls.protocol.String = "MQTT"
+      print("[Tasmota] Protocol selected: MQTT")
+      -- DO NOT connect here - user must press Connect button
     end
   end
   
   Controls.connect.EventHandler = function(ctl)
     if ctl.Boolean then
-      local protocol = Properties["Default Protocol"].Value
-      if protocol == "HTTP" then
+      -- User pressed Connect - establish connection using selected protocol
+      print("[Tasmota] Connecting using protocol: " .. current_protocol)
+      Controls.connection_state.String = "Connecting..."
+      Controls.connection_status.Value = 1  -- Initializing
+      
+      -- Validate MQTT broker address
+      if current_protocol == "MQTT" then
+        if Controls.host.String == "" then
+          print("[Tasmota] ERROR: MQTT broker address must be set")
+          Controls.connection_state.String = "Error: MQTT broker address required"
+          Controls.connection_status.Value = 5  -- Fault
+          Controls.connect.Boolean = false
+          return
+        end
+      end
+      
+      -- Disconnect any other active protocol first
+      Disconnect()
+      
+      -- Connect with selected protocol
+      if current_protocol == "HTTP" then
         ConnectHTTP()
-      elseif protocol == "MQTT" then
+      elseif current_protocol == "MQTT" then
         ConnectMQTT()
-      elseif protocol == "WebSocket" then
-        ConnectWebSocket()
       end
     else
+      -- User pressed Disconnect
+      print("[Tasmota] Disconnecting...")
       Disconnect()
+      Controls.connection_state.String = "Disconnected"
+      Controls.connection_status.Value = 2  -- Compromised/Disconnected
     end
   end
   
@@ -2565,7 +2568,8 @@ if Controls then
   -- ========================================
   
   -- Set default values
-  Controls.protocol.String = Properties["Default Protocol"].Value
+  current_protocol = Properties["Default Protocol"].Value
+  Controls.protocol.String = current_protocol
   Controls.poll_interval.Value = 5
   
   -- Set default port based on protocol
@@ -2577,7 +2581,7 @@ if Controls then
     end
   end
   
-  UpdateStatus("Disconnected", "Ready to connect")
+  UpdateStatus("Disconnected", "Select protocol above, then press Connect")
   
   -- Auto-connect if enabled
   if Properties["Auto Connect"].Value then
