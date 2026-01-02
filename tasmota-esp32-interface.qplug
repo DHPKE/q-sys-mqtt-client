@@ -615,7 +615,7 @@ function GetControlLayout(props)
     
     layout["host"] = {
       PrettyName = "Host/IP Address",
-      Style = "TextField",
+      Style = "Text",
       Position = {105, 72},
       Size = {200, 25},
       FontSize = 12,
@@ -634,7 +634,7 @@ function GetControlLayout(props)
     
     layout["port"] = {
       PrettyName = "Port",
-      Style = "TextField",
+      Style = "Text",
       Position = {365, 72},
       Size = {120, 25},
       FontSize = 12,
@@ -653,7 +653,7 @@ function GetControlLayout(props)
     
     layout["username"] = {
       PrettyName = "Username",
-      Style = "TextField",
+      Style = "Text",
       Position = {105, 107},
       Size = {380, 25},
       FontSize = 12,
@@ -672,7 +672,7 @@ function GetControlLayout(props)
     
     layout["password"] = {
       PrettyName = "Password",
-      Style = "TextField",
+      Style = "Text",
       Position = {105, 142},
       Size = {380, 25},
       FontSize = 12,
@@ -691,7 +691,7 @@ function GetControlLayout(props)
     
     layout["mqtt_topic"] = {
       PrettyName = "MQTT Topic (for MQTT mode)",
-      Style = "TextField",
+      Style = "Text",
       Position = {105, 177},
       Size = {380, 25},
       FontSize = 12,
@@ -833,7 +833,7 @@ function GetControlLayout(props)
         
         layout["pulse_time"][i] = {
           PrettyName = "Pulse Time " .. i,
-          Style = "TextField",
+          Style = "Text",
           Position = {255, yPos + 7},
           Size = {80, 26},
           FontSize = 10,
@@ -852,7 +852,7 @@ function GetControlLayout(props)
         
         layout["power_on_state"][i] = {
           PrettyName = "Power On State " .. i,
-          Style = "TextField",
+          Style = "Text",
           Position = {405, yPos + 7},
           Size = {75, 26},
           FontSize = 10,
@@ -1291,7 +1291,7 @@ function GetControlLayout(props)
     
     layout["scheme"] = {
       PrettyName = "Light Scheme",
-      Style = "TextField",
+      Style = "Text",
       Position = {355, 237},
       Size = {125, 26},
       FontSize = 11,
@@ -1501,7 +1501,7 @@ function GetControlLayout(props)
     
     layout["custom_command"] = {
       PrettyName = "Custom Command",
-      Style = "TextField",
+      Style = "Text",
       Position = {95, 267},
       Size = {300, 26},
       FontSize = 11,
@@ -2025,70 +2025,6 @@ if Controls then
     mqtt_socket:Write(packet)
   end
   
-  local function HandleMQTTPacket(packet_type, flags, data, remaining_length)
-    DebugPrint("Rx", string.format("MQTT Packet Type: 0x%02X, Flags: 0x%02X, Length: %d", packet_type, flags, remaining_length))
-    
-    if packet_type == 2 then -- CONNACK
-      if #data >= 2 then
-        local return_code = string.byte(data, 2)
-        if return_code == 0 then
-          DebugPrint("Rx", "MQTT CONNACK: Connection accepted")
-          UpdateStatus("Connected", "MQTT connected")
-          is_connected = true
-          
-          -- Subscribe to Tasmota topics
-          local base_topic = Controls.mqtt_topic.String
-          if base_topic ~= "" then
-            SubscribeMQTT("stat/" .. base_topic .. "/#", 0)
-            SubscribeMQTT("tele/" .. base_topic .. "/#", 0)
-          end
-          
-          -- Start keep-alive timer
-          if keep_alive_timer then
-            keep_alive_timer:Stop()
-          end
-          keep_alive_timer = Timer.New()
-          keep_alive_timer.EventHandler = function()
-            SendMQTTPingreq()
-          end
-          keep_alive_timer:Start(30)
-        else
-          DebugPrint("Rx", string.format("MQTT CONNACK: Connection refused (code %d)", return_code))
-          UpdateStatus("Error", "MQTT connection refused")
-        end
-      end
-      
-    elseif packet_type == 3 then -- PUBLISH
-      local qos = math.floor((flags % 8) / 2)
-      local retain = (flags % 2) == 1
-      
-      -- Parse topic length
-      local topic_len = string.byte(data, 1) * 256 + string.byte(data, 2)
-      local topic = string.sub(data, 3, 2 + topic_len)
-      
-      local payload_start = 3 + topic_len
-      
-      -- Skip packet ID for QoS > 0
-      if qos > 0 then
-        payload_start = payload_start + 2
-      end
-      
-      local payload = string.sub(data, payload_start)
-      
-      DebugPrint("Rx", string.format("MQTT PUBLISH: Topic=%s, Payload=%s, QoS=%d, Retain=%s", 
-        topic, payload, qos, tostring(retain)))
-      
-      -- Parse Tasmota responses
-      ParseTasmotaResponse(topic, payload)
-      
-    elseif packet_type == 9 then -- SUBACK
-      DebugPrint("Rx", "MQTT SUBACK received")
-      
-    elseif packet_type == 13 then -- PINGRESP
-      DebugPrint("Rx", "MQTT PINGRESP received")
-    end
-  end
-  
   -- ========================================
   -- Tasmota Response Parser
   -- ========================================
@@ -2263,6 +2199,70 @@ if Controls then
     
     -- Store full response
     Controls.command_response.String = StringifyJSON(data)
+  end
+  
+  local function HandleMQTTPacket(packet_type, flags, data, remaining_length)
+    DebugPrint("Rx", string.format("MQTT Packet Type: 0x%02X, Flags: 0x%02X, Length: %d", packet_type, flags, remaining_length))
+    
+    if packet_type == 2 then -- CONNACK
+      if #data >= 2 then
+        local return_code = string.byte(data, 2)
+        if return_code == 0 then
+          DebugPrint("Rx", "MQTT CONNACK: Connection accepted")
+          UpdateStatus("Connected", "MQTT connected")
+          is_connected = true
+          
+          -- Subscribe to Tasmota topics
+          local base_topic = Controls.mqtt_topic.String
+          if base_topic ~= "" then
+            SubscribeMQTT("stat/" .. base_topic .. "/#", 0)
+            SubscribeMQTT("tele/" .. base_topic .. "/#", 0)
+          end
+          
+          -- Start keep-alive timer
+          if keep_alive_timer then
+            keep_alive_timer:Stop()
+          end
+          keep_alive_timer = Timer.New()
+          keep_alive_timer.EventHandler = function()
+            SendMQTTPingreq()
+          end
+          keep_alive_timer:Start(30)
+        else
+          DebugPrint("Rx", string.format("MQTT CONNACK: Connection refused (code %d)", return_code))
+          UpdateStatus("Error", "MQTT connection refused")
+        end
+      end
+      
+    elseif packet_type == 3 then -- PUBLISH
+      local qos = math.floor((flags % 8) / 2)
+      local retain = (flags % 2) == 1
+      
+      -- Parse topic length
+      local topic_len = string.byte(data, 1) * 256 + string.byte(data, 2)
+      local topic = string.sub(data, 3, 2 + topic_len)
+      
+      local payload_start = 3 + topic_len
+      
+      -- Skip packet ID for QoS > 0
+      if qos > 0 then
+        payload_start = payload_start + 2
+      end
+      
+      local payload = string.sub(data, payload_start)
+      
+      DebugPrint("Rx", string.format("MQTT PUBLISH: Topic=%s, Payload=%s, QoS=%d, Retain=%s", 
+        topic, payload, qos, tostring(retain)))
+      
+      -- Parse Tasmota responses
+      ParseTasmotaResponse(topic, payload)
+      
+    elseif packet_type == 9 then -- SUBACK
+      DebugPrint("Rx", "MQTT SUBACK received")
+      
+    elseif packet_type == 13 then -- PINGRESP
+      DebugPrint("Rx", "MQTT PINGRESP received")
+    end
   end
   
   -- ========================================
