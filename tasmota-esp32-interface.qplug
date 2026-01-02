@@ -2055,7 +2055,7 @@ if Controls then
     end
     
     -- Parse power states
-    if data.POWER ~= nil then
+    if data.POWER ~= nil and Properties["Power Relay Count"].Value > 0 then
       Controls.power[1].Boolean = (data.POWER == "ON")
       Controls.power_status[1].Boolean = (data.POWER == "ON")
     end
@@ -2074,30 +2074,30 @@ if Controls then
       
       -- Temperature sensors
       if sensors.DS18B20 then
-        if sensors.DS18B20.Temperature then
+        if sensors.DS18B20.Temperature and Properties["Temperature Sensor Count"].Value > 0 then
           Controls.temperature[1].String = string.format("%.1f °C", sensors.DS18B20.Temperature)
         end
       end
       
       if sensors.DHT11 or sensors.DHT22 or sensors.AM2301 then
         local dht = sensors.DHT11 or sensors.DHT22 or sensors.AM2301
-        if dht.Temperature then
+        if dht.Temperature and Properties["Temperature Sensor Count"].Value > 0 then
           Controls.temperature[1].String = string.format("%.1f °C", dht.Temperature)
         end
-        if dht.Humidity then
+        if dht.Humidity and Properties["Humidity Sensor Count"].Value > 0 then
           Controls.humidity[1].String = string.format("%.1f %%", dht.Humidity)
         end
       end
       
       if sensors.BME280 or sensors.BMP280 then
         local bme = sensors.BME280 or sensors.BMP280
-        if bme.Temperature then
+        if bme.Temperature and Properties["Temperature Sensor Count"].Value > 0 then
           Controls.temperature[1].String = string.format("%.1f °C", bme.Temperature)
         end
-        if bme.Humidity then
+        if bme.Humidity and Properties["Humidity Sensor Count"].Value > 0 then
           Controls.humidity[1].String = string.format("%.1f %%", bme.Humidity)
         end
-        if bme.Pressure then
+        if bme.Pressure and Properties["Pressure Sensor Count"].Value > 0 then
           Controls.pressure[1].String = string.format("%.1f hPa", bme.Pressure)
         end
       end
