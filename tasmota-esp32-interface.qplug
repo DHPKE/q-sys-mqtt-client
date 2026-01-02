@@ -615,9 +615,11 @@ function GetControlLayout(props)
     
     layout["host"] = {
       PrettyName = "Host/IP Address",
+      Style = "TextField",
       Position = {105, 72},
       Size = {200, 25},
-      FontSize = 12
+      FontSize = 12,
+      Color = {255, 255, 255}
     }
     
     -- Port
@@ -632,9 +634,11 @@ function GetControlLayout(props)
     
     layout["port"] = {
       PrettyName = "Port",
+      Style = "TextField",
       Position = {365, 72},
       Size = {120, 25},
-      FontSize = 12
+      FontSize = 12,
+      Color = {255, 255, 255}
     }
     
     -- Username
@@ -649,9 +653,11 @@ function GetControlLayout(props)
     
     layout["username"] = {
       PrettyName = "Username",
+      Style = "TextField",
       Position = {105, 107},
       Size = {380, 25},
-      FontSize = 12
+      FontSize = 12,
+      Color = {255, 255, 255}
     }
     
     -- Password
@@ -666,9 +672,11 @@ function GetControlLayout(props)
     
     layout["password"] = {
       PrettyName = "Password",
+      Style = "TextField",
       Position = {105, 142},
       Size = {380, 25},
-      FontSize = 12
+      FontSize = 12,
+      Color = {255, 255, 255}
     }
     
     -- MQTT Topic
@@ -683,9 +691,11 @@ function GetControlLayout(props)
     
     layout["mqtt_topic"] = {
       PrettyName = "MQTT Topic (for MQTT mode)",
+      Style = "TextField",
       Position = {105, 177},
       Size = {380, 25},
-      FontSize = 12
+      FontSize = 12,
+      Color = {255, 255, 255}
     }
     
     -- Poll Interval
@@ -823,9 +833,11 @@ function GetControlLayout(props)
         
         layout["pulse_time"][i] = {
           PrettyName = "Pulse Time " .. i,
+          Style = "TextField",
           Position = {255, yPos + 7},
           Size = {80, 26},
-          FontSize = 10
+          FontSize = 10,
+          Color = {255, 255, 255}
         }
         
         -- Power On State
@@ -840,9 +852,11 @@ function GetControlLayout(props)
         
         layout["power_on_state"][i] = {
           PrettyName = "Power On State " .. i,
+          Style = "TextField",
           Position = {405, yPos + 7},
           Size = {75, 26},
-          FontSize = 10
+          FontSize = 10,
+          Color = {255, 255, 255}
         }
       end
     end
@@ -855,7 +869,7 @@ function GetControlLayout(props)
     local press_count = props["Pressure Sensor Count"].Value
     
     -- Temperature Sensors GroupBox
-    local temp_height = temp_count > 0 and (30 + temp_count * 28) or 60
+    local temp_height = temp_count > 0 and (30 + temp_count * 30) or 60
     table.insert(graphics, {
       Type = "GroupBox",
       Text = "Temperature Sensors" .. (temp_count > 0 and "" or " (None Configured)"),
@@ -870,7 +884,7 @@ function GetControlLayout(props)
     if temp_count > 0 then
       layout["temperature"] = {}
       for i = 1, temp_count do
-        local yPos = 25 + ((i-1) * 28)
+        local yPos = 25 + ((i-1) * 30)
         
         table.insert(graphics, {
           Type = "Label",
@@ -900,7 +914,7 @@ function GetControlLayout(props)
     end
     
     -- Humidity Sensors GroupBox
-    local hum_height = hum_count > 0 and (30 + hum_count * 28) or 60
+    local hum_height = hum_count > 0 and (30 + hum_count * 30) or 60
     table.insert(graphics, {
       Type = "GroupBox",
       Text = "Humidity Sensors" .. (hum_count > 0 and "" or " (None Configured)"),
@@ -915,7 +929,7 @@ function GetControlLayout(props)
     if hum_count > 0 then
       layout["humidity"] = {}
       for i = 1, hum_count do
-        local yPos = 25 + ((i-1) * 28)
+        local yPos = 25 + ((i-1) * 30)
         
         table.insert(graphics, {
           Type = "Label",
@@ -945,7 +959,7 @@ function GetControlLayout(props)
     end
     
     -- Pressure Sensors GroupBox
-    local press_height = press_count > 0 and (30 + press_count * 28) or 60
+    local press_height = press_count > 0 and (30 + press_count * 30) or 60
     table.insert(graphics, {
       Type = "GroupBox",
       Text = "Pressure Sensors" .. (press_count > 0 and "" or " (None Configured)"),
@@ -960,7 +974,7 @@ function GetControlLayout(props)
     if press_count > 0 then
       layout["pressure"] = {}
       for i = 1, press_count do
-        local yPos = 175 + ((i-1) * 28)
+        local yPos = 175 + ((i-1) * 30)
         
         table.insert(graphics, {
           Type = "Label",
@@ -1117,8 +1131,8 @@ function GetControlLayout(props)
     layout["color_r"] = {
       PrettyName = "Red (0-255)",
       Position = {315, 22},
-      Size = {80, 48},
-      FontSize = 12
+      Size = {70, 45},
+      FontSize = 11
     }
     
     table.insert(graphics, {
@@ -1133,8 +1147,8 @@ function GetControlLayout(props)
     layout["color_g"] = {
       PrettyName = "Green (0-255)",
       Position = {315, 72},
-      Size = {80, 48},
-      FontSize = 12
+      Size = {70, 45},
+      FontSize = 11
     }
     
     table.insert(graphics, {
@@ -1149,8 +1163,8 @@ function GetControlLayout(props)
     layout["color_b"] = {
       PrettyName = "Blue (0-255)",
       Position = {315, 122},
-      Size = {80, 48},
-      FontSize = 12
+      Size = {70, 45},
+      FontSize = 11
     }
     
     table.insert(graphics, {
@@ -1164,9 +1178,9 @@ function GetControlLayout(props)
     
     layout["color_w"] = {
       PrettyName = "White (0-255)",
-      Position = {410, 22},
-      Size = {70, 48},
-      FontSize = 12
+      Position = {405, 22},
+      Size = {70, 45},
+      FontSize = 11
     }
     
     table.insert(graphics, {
@@ -1204,13 +1218,13 @@ function GetControlLayout(props)
       StrokeColor = {0, 0, 0},
       StrokeWidth = 1,
       Position = {5, 215},
-      Size = {490, 100}
+      Size = {240, 150}
     })
     
     table.insert(graphics, {
       Type = "Label",
       Text = "Hue (0-360):",
-      Position = {15, 240},
+      Position = {15, 235},
       Size = {80, 20},
       FontSize = 11,
       HTextAlign = "Right"
@@ -1218,15 +1232,15 @@ function GetControlLayout(props)
     
     layout["hsb_h"] = {
       PrettyName = "Hue",
-      Position = {105, 232},
-      Size = {95, 56},
-      FontSize = 12
+      Position = {105, 227},
+      Size = {120, 45},
+      FontSize = 11
     }
     
     table.insert(graphics, {
       Type = "Label",
       Text = "Sat (0-100):",
-      Position = {215, 240},
+      Position = {15, 285},
       Size = {80, 20},
       FontSize = 11,
       HTextAlign = "Right"
@@ -1234,15 +1248,15 @@ function GetControlLayout(props)
     
     layout["hsb_s"] = {
       PrettyName = "Saturation",
-      Position = {305, 232},
-      Size = {85, 56},
-      FontSize = 12
+      Position = {105, 277},
+      Size = {120, 45},
+      FontSize = 11
     }
     
     table.insert(graphics, {
       Type = "Label",
       Text = "Bright (0-100):",
-      Position = {15, 290},
+      Position = {15, 335},
       Size = {80, 20},
       FontSize = 11,
       HTextAlign = "Right"
@@ -1250,15 +1264,26 @@ function GetControlLayout(props)
     
     layout["hsb_b"] = {
       PrettyName = "Brightness",
-      Position = {105, 282},
-      Size = {95, 56},
-      FontSize = 12
+      Position = {105, 327},
+      Size = {120, 45},
+      FontSize = 11
     }
+    
+    table.insert(graphics, {
+      Type = "GroupBox",
+      Text = "Effects & Schemes",
+      Fill = {150, 150, 200},
+      CornerRadius = 8,
+      StrokeColor = {0, 0, 0},
+      StrokeWidth = 1,
+      Position = {255, 215},
+      Size = {240, 150}
+    })
     
     table.insert(graphics, {
       Type = "Label",
       Text = "Scheme:",
-      Position = {215, 290},
+      Position = {265, 240},
       Size = {80, 20},
       FontSize = 11,
       HTextAlign = "Right"
@@ -1266,26 +1291,17 @@ function GetControlLayout(props)
     
     layout["scheme"] = {
       PrettyName = "Light Scheme",
-      Position = {305, 287},
-      Size = {85, 26},
-      FontSize = 11
+      Style = "TextField",
+      Position = {355, 237},
+      Size = {125, 26},
+      FontSize = 11,
+      Color = {255, 255, 255}
     }
-    
-    table.insert(graphics, {
-      Type = "GroupBox",
-      Text = "Effects",
-      Fill = {150, 150, 200},
-      CornerRadius = 8,
-      StrokeColor = {0, 0, 0},
-      StrokeWidth = 1,
-      Position = {255, 215},
-      Size = {240, 100}
-    })
     
     table.insert(graphics, {
       Type = "Label",
       Text = "Fade Speed:",
-      Position = {265, 250},
+      Position = {265, 285},
       Size = {80, 20},
       FontSize = 11,
       HTextAlign = "Right"
@@ -1293,9 +1309,9 @@ function GetControlLayout(props)
     
     layout["fade_speed"] = {
       PrettyName = "Fade Speed (0-20)",
-      Position = {355, 242},
+      Position = {355, 277},
       Size = {120, 56},
-      FontSize = 12
+      FontSize = 11
     }
     
   -- PAGE 5: GPIO & Advanced
@@ -1485,9 +1501,11 @@ function GetControlLayout(props)
     
     layout["custom_command"] = {
       PrettyName = "Custom Command",
+      Style = "TextField",
       Position = {95, 267},
       Size = {300, 26},
-      FontSize = 11
+      FontSize = 11,
+      Color = {255, 255, 255}
     }
     
     layout["send_command"] = {
