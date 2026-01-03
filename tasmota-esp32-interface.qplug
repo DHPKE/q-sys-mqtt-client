@@ -1859,7 +1859,9 @@ if Controls then
         http_buffer = ""
       end
       
-      -- DO NOT reconnect here! Timer will handle next poll
+      -- DO NOT reconnect here! Timer will handle next poll.
+      -- HTTP is stateless - connections naturally close after each response.
+      -- The timer-based polling mechanism controls when to make the next request.
     end
     
     http_socket.Error = function(sock, err)
@@ -1872,7 +1874,10 @@ if Controls then
       UpdateStatus("Error", "HTTP connection timeout")
     end
     
-    -- DO NOT handle Reconnect event! Let the timer control polling
+    -- DO NOT handle Reconnect event! Let the timer control polling.
+    -- HTTP connections naturally close after each request/response (Connection: close header).
+    -- Handling Reconnect would cause immediate reconnection, creating an infinite loop.
+    -- The timer respects the poll_interval setting and controls when to poll again.
     
     DebugPrint("Tx", string.format("Connecting to %s:%d", host, port))
     http_socket:Connect(host, port)
