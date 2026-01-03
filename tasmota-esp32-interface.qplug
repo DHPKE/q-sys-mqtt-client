@@ -1691,6 +1691,9 @@ if Controls then
   local subscribed_topics = {}
   local pending_qos2 = {}
   local device_state = {}
+  local http_buffer = ""
+  local is_polling = false
+  local http_poll_timer = nil
   
   -- JSON Library
   local rapidjson = require("rapidjson")
@@ -1783,92 +1786,233 @@ if Controls then
     return str
   end
   
+  -- HTTP Connection Manager - Creates new socket for each poll request
+  local function ConnectAndPollHTTP()
+    if not is_polling then return end
+    
+    local host = Controls.host.String
+    local port = tonumber(Controls.port.String) or 80
+    
+    if host == "" then
+      UpdateStatus("Error", "No host specified")
+      return
+    end
+    
+    -- Create new socket for each request
+    http_socket = TcpSocket.New()
+    http_socket.ReadTimeout = Properties["Connection Timeout"].Value
+    http_socket.WriteTimeout = Properties["Connection Timeout"].Value
+    http_buffer = ""
+    
+    http_socket.Connected = function(sock)
+      DebugPrint("Function", "HTTP Connected callback")
+      is_connected = true
+      UpdateStatus("Connected", "HTTP connected - polling every " .. Controls.poll_interval.Value .. "s")
+      
+      -- Send request
+      local command = "Status 0"
+      local path = "/cm?cmnd=" .. EncodeURL(command)
+      local request = string.format("GET %s HTTP/1.1\r\n", path)
+      request = request .. string.format("Host: %s\r\n", host)
+      
+      -- Add authentication if provided
+      if Controls.username.String ~= "" and Controls.password.String ~= "" then
+        local auth = Controls.username.String .. ":" .. Controls.password.String
+        local base64_auth = Crypto.Base64Encode(auth)
+        request = request .. string.format("Authorization: Basic %s\r\n", base64_auth)
+      end
+      
+      request = request .. "Connection: close\r\n\r\n"
+      
+      DebugPrint("Tx", "Sending HTTP request:\n" .. request)
+      sock:Write(request)
+    end
+    
+    http_socket.Data = function(sock)
+      local data = sock:ReadLine(TcpSocket.EOL.Any)
+      while data do
+        DebugPrint("Rx", "HTTP Data: " .. data)
+        http_buffer = http_buffer .. data .. "\n"
+        data = sock:ReadLine(TcpSocket.EOL.Any)
+      end
+    end
+    
+    http_socket.Closed = function(sock)
+      DebugPrint("Function", "HTTP Closed callback")
+      
+      -- Process received data
+      if http_buffer ~= "" then
+        -- Extract body from HTTP response
+        local body_start = http_buffer:find("\n\n")
+        if not body_start then
+          body_start = http_buffer:find("\r\n\r\n")
+        end
+        
+        if body_start then
+          local body = http_buffer:sub(body_start):gsub("^%s+", "")
+          if body ~= "" then
+            DebugPrint("Rx", "HTTP Body: " .. body)
+            ParseTasmotaResponse("status", body)
+          end
+        end
+        
+        http_buffer = ""
+      end
+      
+      -- DO NOT reconnect here! Timer will handle next poll
+    end
+    
+    http_socket.Error = function(sock, err)
+      DebugPrint("Function", "HTTP Error: " .. (err or "Unknown"))
+      UpdateStatus("Error", "HTTP Error: " .. (err or "Unknown"))
+    end
+    
+    http_socket.Timeout = function(sock)
+      DebugPrint("Function", "HTTP Timeout")
+      UpdateStatus("Error", "HTTP connection timeout")
+    end
+    
+    -- DO NOT handle Reconnect event! Let the timer control polling
+    
+    DebugPrint("Tx", string.format("Connecting to %s:%d", host, port))
+    http_socket:Connect(host, port)
+  end
+  
+  -- Start HTTP Polling with Timer
+  local function StartHTTPPolling()
+    is_polling = true
+    
+    -- Get poll interval in seconds
+    local interval = Controls.poll_interval.Value or 5
+    
+    -- Stop any existing timer
+    if http_poll_timer then
+      http_poll_timer:Stop()
+    end
+    
+    -- Create polling timer
+    http_poll_timer = Timer.New()
+    http_poll_timer.EventHandler = function(timer)
+      if is_polling then
+        ConnectAndPollHTTP()
+      end
+    end
+    
+    -- Start timer (repeating)
+    http_poll_timer:Start(interval)
+    
+    -- Do first poll immediately
+    ConnectAndPollHTTP()
+    
+    DebugPrint("Function", string.format("HTTP polling started (every %d seconds)", interval))
+  end
+  
+  -- Stop HTTP Polling
+  local function StopHTTPPolling()
+    is_polling = false
+    
+    if http_poll_timer then
+      http_poll_timer:Stop()
+      http_poll_timer = nil
+    end
+    
+    if http_socket then
+      http_socket:Disconnect()
+      http_socket = nil
+    end
+    
+    DebugPrint("Function", "HTTP polling stopped")
+  end
+  
+  -- Legacy HTTPRequest function for custom commands
   local function HTTPRequest(method, path, body, callback)
     DebugPrint("Function", string.format("HTTPRequest: %s %s", method, path))
     
-    if not http_socket or not http_socket.IsConnected then
-      DebugPrint("Tx", "Creating HTTP connection")
-      http_socket = TcpSocket.New()
-      http_socket.ReadTimeout = Properties["Connection Timeout"].Value
-      http_socket.WriteTimeout = Properties["Connection Timeout"].Value
-      
-      http_socket.Connected = function(sock)
-        DebugPrint("Function", "HTTP Connected callback")
-        
-        -- Build HTTP request
-        local request = string.format("%s %s HTTP/1.1\r\n", method, path)
-        request = request .. string.format("Host: %s\r\n", Controls.host.String)
-        
-        -- Add authentication if provided
-        if Controls.username.String ~= "" and Controls.password.String ~= "" then
-          local auth = Controls.username.String .. ":" .. Controls.password.String
-          local base64_auth = Crypto.Base64Encode(auth)
-          request = request .. string.format("Authorization: Basic %s\r\n", base64_auth)
-        end
-        
-        if body then
-          request = request .. string.format("Content-Length: %d\r\n", #body)
-          request = request .. "Content-Type: application/x-www-form-urlencoded\r\n"
-        end
-        
-        request = request .. "Connection: close\r\n\r\n"
-        
-        if body then
-          request = request .. body
-        end
-        
-        DebugPrint("Tx", "Sending HTTP request:\n" .. request)
-        sock:Write(request)
-      end
-      
-      http_socket.Reconnect = function(sock)
-        DebugPrint("Function", "HTTP Reconnect callback")
-        UpdateStatus("Error", "HTTP connection lost, reconnecting...")
-      end
-      
-      http_socket.Data = function(sock)
-        local data = sock:ReadLine(TcpSocket.EOL.Any)
-        while data ~= nil do
-          DebugPrint("Rx", "HTTP Data: " .. data)
-          
-          -- Find empty line (end of headers)
-          if data == "" or data == "\r" then
-            -- Next read should be the body
-            local body_data = sock:Read(sock.BufferLength)
-            if body_data and #body_data > 0 then
-              DebugPrint("Rx", "HTTP Body: " .. body_data)
-              if callback then
-                callback(body_data)
-              end
-            end
-            break
-          end
-          
-          data = sock:ReadLine(TcpSocket.EOL.Any)
-        end
-      end
-      
-      http_socket.Closed = function(sock)
-        DebugPrint("Function", "HTTP Closed callback")
-      end
-      
-      http_socket.Error = function(sock, err)
-        DebugPrint("Function", string.format("HTTP Error: %s", err))
-        UpdateStatus("Error", "HTTP Error: " .. err)
-      end
-      
-      http_socket.Timeout = function(sock)
-        DebugPrint("Function", "HTTP Timeout")
-        UpdateStatus("Error", "HTTP request timeout")
-      end
-      
-      local port = tonumber(Controls.port.String) or 80
-      DebugPrint("Tx", string.format("Connecting to %s:%d", Controls.host.String, port))
-      http_socket:Connect(Controls.host.String, port)
-    else
-      -- Reuse existing connection (not implemented in this simple version)
-      DebugPrint("Tx", "Reusing HTTP connection")
+    local host = Controls.host.String
+    local port = tonumber(Controls.port.String) or 80
+    
+    if host == "" then
+      UpdateStatus("Error", "No host specified")
+      return
     end
+    
+    -- Create new socket for this request
+    local req_socket = TcpSocket.New()
+    req_socket.ReadTimeout = Properties["Connection Timeout"].Value
+    req_socket.WriteTimeout = Properties["Connection Timeout"].Value
+    local req_buffer = ""
+    
+    req_socket.Connected = function(sock)
+      DebugPrint("Function", "HTTP Request Connected callback")
+      
+      -- Build HTTP request
+      local request = string.format("%s %s HTTP/1.1\r\n", method, path)
+      request = request .. string.format("Host: %s\r\n", host)
+      
+      -- Add authentication if provided
+      if Controls.username.String ~= "" and Controls.password.String ~= "" then
+        local auth = Controls.username.String .. ":" .. Controls.password.String
+        local base64_auth = Crypto.Base64Encode(auth)
+        request = request .. string.format("Authorization: Basic %s\r\n", base64_auth)
+      end
+      
+      if body then
+        request = request .. string.format("Content-Length: %d\r\n", #body)
+        request = request .. "Content-Type: application/x-www-form-urlencoded\r\n"
+      end
+      
+      request = request .. "Connection: close\r\n\r\n"
+      
+      if body then
+        request = request .. body
+      end
+      
+      DebugPrint("Tx", "Sending HTTP request:\n" .. request)
+      sock:Write(request)
+    end
+    
+    req_socket.Data = function(sock)
+      local data = sock:ReadLine(TcpSocket.EOL.Any)
+      while data do
+        DebugPrint("Rx", "HTTP Data: " .. data)
+        req_buffer = req_buffer .. data .. "\n"
+        data = sock:ReadLine(TcpSocket.EOL.Any)
+      end
+    end
+    
+    req_socket.Closed = function(sock)
+      DebugPrint("Function", "HTTP Request Closed callback")
+      
+      -- Process received data
+      if req_buffer ~= "" then
+        -- Extract body from HTTP response
+        local body_start = req_buffer:find("\n\n")
+        if not body_start then
+          body_start = req_buffer:find("\r\n\r\n")
+        end
+        
+        if body_start then
+          local body = req_buffer:sub(body_start):gsub("^%s+", "")
+          if body ~= "" and callback then
+            DebugPrint("Rx", "HTTP Body: " .. body)
+            callback(body)
+          end
+        end
+      end
+    end
+    
+    req_socket.Error = function(sock, err)
+      DebugPrint("Function", string.format("HTTP Request Error: %s", err))
+      UpdateStatus("Error", "HTTP Error: " .. err)
+    end
+    
+    req_socket.Timeout = function(sock)
+      DebugPrint("Function", "HTTP Request Timeout")
+      UpdateStatus("Error", "HTTP request timeout")
+    end
+    
+    DebugPrint("Tx", string.format("Connecting to %s:%d for request", host, port))
+    req_socket:Connect(host, port)
   end
   
   local function SendTasmotaCommand(command, callback)
@@ -2271,24 +2415,21 @@ if Controls then
   
   local function ConnectHTTP()
     DebugPrint("Function", "ConnectHTTP")
+    
+    local host = Controls.host.String
+    local port = tonumber(Controls.port.String) or 80
+    
+    if host == "" then
+      UpdateStatus("Error", "No host specified")
+      return
+    end
+    
     current_protocol = "HTTP"
     Controls.protocol.String = "HTTP"
-    UpdateStatus("Connected", "HTTP mode active")
-    is_connected = true
+    UpdateStatus("Connecting", "Starting HTTP polling to " .. host .. ":" .. port)
     
-    -- Start polling timer
-    if poll_timer then
-      poll_timer:Stop()
-    end
-    poll_timer = Timer.New()
-    poll_timer.EventHandler = function()
-      -- Poll for status
-      SendTasmotaCommand("Status 0", function(response)
-        ParseTasmotaResponse("status", response)
-      end)
-    end
-    local interval = Controls.poll_interval.Value or 5
-    poll_timer:Start(interval)
+    -- Start timer-based polling
+    StartHTTPPolling()
   end
   
   local function ConnectMQTT()
@@ -2370,6 +2511,14 @@ if Controls then
   local function Disconnect()
     DebugPrint("Function", "Disconnect")
     
+    is_connected = false
+    
+    -- Stop HTTP polling
+    if current_protocol == "HTTP" then
+      StopHTTPPolling()
+    end
+    
+    -- Stop old poll_timer if it exists
     if poll_timer then
       poll_timer:Stop()
       poll_timer = nil
@@ -2388,7 +2537,6 @@ if Controls then
       mqtt_socket:Disconnect()
     end
     
-    is_connected = false
     UpdateStatus("Disconnected", "Disconnected")
   end
   
@@ -2452,6 +2600,15 @@ if Controls then
   end
   
   Controls.poll_interval.EventHandler = function(ctl)
+    DebugPrint("Function", string.format("Poll interval changed to %d seconds", ctl.Value))
+    
+    -- If HTTP polling is active, restart with new interval
+    if is_polling and current_protocol == "HTTP" then
+      DebugPrint("Function", "Restarting HTTP polling with new interval")
+      StartHTTPPolling()
+    end
+    
+    -- Legacy support for old poll_timer
     if poll_timer and poll_timer.IsRunning then
       poll_timer:Stop()
       poll_timer:Start(ctl.Value)
